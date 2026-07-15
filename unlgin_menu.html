@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arc - 探索未来</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+:root { --mouse-x: 50%; --mouse-y: 50%; }
+body { margin:0; padding:0; overflow:hidden; background:#020617; font-family:'Inter',sans-serif; cursor:none; }
+
+/* 背景 */
+.ambient-bg { position:absolute; top:0; left:0; width:100%; height:100%; z-index:-3; background:radial-gradient(circle at 50% 50%, #1e1b4b 0%, #0f172a 100%); }
+.noise-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E"); pointer-events:none; z-index:-1; opacity:0.4; }
+
+/* 流体光球 */
+.orb { position:absolute; border-radius:50%; filter:blur(100px); opacity:0.6; animation:fluid-move 15s infinite ease-in-out alternate; }
+.orb-1 { width:60vw; height:60vw; background:conic-gradient(from 0deg,#3b82f6,#8b5cf6,#ec4899,#3b82f6); top:-30%; left:-20%; animation-duration:20s; }
+.orb-2 { width:50vw; height:50vw; background:conic-gradient(from 180deg,#06b6d4,#3b82f6,#6366f1,#06b6d4); bottom:-20%; right:-15%; animation-duration:25s; animation-delay:-5s; }
+.orb-3 { width:30vw; height:30vw; background:radial-gradient(circle,rgba(255,255,255,0.1) 0%,transparent 70%); top:40%; left:40%; animation:pulse-glow 8s infinite ease-in-out; }
+@keyframes fluid-move { 0%{transform:translate(0,0) rotate(0deg) scale(1)} 100%{transform:translate(50px,30px) rotate(20deg) scale(1.1)} }
+@keyframes pulse-glow { 0%,100%{opacity:0.3;transform:scale(1)} 50%{opacity:0.6;transform:scale(1.2)} }
+
+/* 光标 */
+.cursor-wrapper { position:fixed; top:0; left:0; pointer-events:none; z-index:9999; transform:translate(-50%,-50%); transition:opacity 0.2s; }
+.cursor-dot { width:6px; height:6px; background:#fff; border-radius:50%; box-shadow:0 0 15px rgba(255,255,255,0.8); }
+.cursor-ring { position:absolute; top:50%; left:50%; width:40px; height:40px; border:1px solid rgba(255,255,255,0.3); border-radius:50%; transform:translate(-50%,-50%); transition:all 0.15s ease-out; }
+.cursor-glow { position:absolute; top:50%; left:50%; width:400px; height:400px; background:radial-gradient(circle,rgba(255,255,255,0.08) 0%,transparent 50%); transform:translate(-50%,-50%); mix-blend-mode:screen; }
+
+/* 玻璃卡片 */
+.glass-container { position:relative; width:100%; max-width:650px; padding:4rem 3.5rem; border-radius:40px; background:rgba(255,255,255,0.02); backdrop-filter:blur(40px) saturate(180%); -webkit-backdrop-filter:blur(40px) saturate(180%); border:1px solid rgba(255,255,255,0.08); box-shadow:0 40px 80px -20px rgba(0,0,0,0.5),inset 0 0 0 1px rgba(255,255,255,0.05),inset 0 0 60px rgba(255,255,255,0.02); transform-style:preserve-3d; transition:transform 0.1s ease-out; display:flex; flex-direction:column; align-items:center; gap:3rem; overflow:hidden; }
+.glass-reflection { position:absolute; top:0; left:0; width:100%; height:100%; background:radial-gradient(circle at var(--mouse-x) var(--mouse-y),rgba(255,255,255,0.1) 0%,transparent 40%),linear-gradient(125deg,rgba(255,255,255,0.05) 0%,transparent 40%,rgba(255,255,255,0.02) 100%); pointer-events:none; z-index:1; }
+.glass-border-glow { position:absolute; top:-2px; left:-2px; right:-2px; bottom:-2px; background:linear-gradient(45deg,transparent 40%,rgba(255,255,255,0.1) 50%,transparent 60%); border-radius:42px; z-index:-1; opacity:0; transition:opacity 0.5s; }
+.glass-container:hover .glass-border-glow { opacity:1; }
+
+/* 标题 */
+.arc-title { font-size:5rem; font-weight:900; letter-spacing:-0.05em; background:linear-gradient(135deg,#fff 0%,#cbd5e1 50%,#94a3b8 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; position:relative; z-index:10; transition:all 0.5s cubic-bezier(0.34,1.56,0.64,1); filter:drop-shadow(0 0 20px rgba(255,255,255,0.1)); }
+.arc-title:hover { transform:scale(1.05) translateY(-5px); filter:drop-shadow(0 0 40px rgba(255,255,255,0.3)); }
+.arc-title::before { content:'Arc'; position:absolute; top:0; left:0; width:100%; height:100%; background:linear-gradient(90deg,transparent,rgba(255,255,255,0.8),transparent); background-size:200% 100%; background-position:-100% 0; -webkit-background-clip:text; -webkit-text-fill-color:transparent; opacity:0; transition:opacity 0.3s; }
+.arc-title:hover::before { animation:shine-sweep 1.5s infinite linear; opacity:0.6; }
+@keyframes shine-sweep { 0%{background-position:-100% 0} 100%{background-position:200% 0} }
+.arc-subtitle { color:#94a3b8; font-size:1.1rem; font-weight:400; letter-spacing:0.2em; text-transform:uppercase; position:relative; z-index:10; }
+.arc-subtitle::after { content:''; display:block; width:40px; height:1px; background:rgba(255,255,255,0.2); margin:1rem auto 0; transition:width 0.5s; }
+.glass-container:hover .arc-subtitle::after { width:80px; background:rgba(255,255,255,0.5); }
+
+/* 按钮 */
+.btn-group { display:flex; gap:2rem; width:100%; justify-content:center; perspective:1000px; }
+.liquid-btn { position:relative; padding:1.2rem 2.5rem; border-radius:20px; font-weight:600; color:#fff; text-decoration:none; border:1px solid rgba(255,255,255,0.1); min-width:180px; display:flex; align-items:center; justify-content:center; gap:0.8rem; transition:all 0.5s cubic-bezier(0.23,1,0.32,1); overflow:hidden; background:rgba(255,255,255,0.03); box-shadow:0 10px 30px -10px rgba(0,0,0,0.2); }
+.btn-primary { background:linear-gradient(135deg,rgba(255,255,255,0.1) 0%,rgba(255,255,255,0.05) 100%); }
+.btn-primary:hover { border-color:rgba(255,255,255,0.3); box-shadow:0 20px 40px -10px rgba(56,189,248,0.4); transform:translateY(-5px); }
+.btn-secondary:hover { border-color:rgba(255,255,255,0.2); box-shadow:0 20px 40px -10px rgba(232,121,249,0.2); transform:translateY(-5px); }
+.btn-shine { position:absolute; top:0; left:-100%; width:50%; height:100%; background:linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent); transform:skewX(-20deg); transition:left 0.5s; }
+.liquid-btn:hover .btn-shine { left:150%; transition:left 0.7s ease-in-out; }
+.btn-glow { position:absolute; width:100%; height:100%; top:0; left:0; background:radial-gradient(circle at var(--mouse-x) var(--mouse-y),rgba(255,255,255,0.15) 0%,transparent 60%); opacity:0; transition:opacity 0.3s; pointer-events:none; }
+.liquid-btn:hover .btn-glow { opacity:1; }
+
+/* 粒子 */
+.click-particle { position:fixed; width:4px; height:4px; background:#fff; border-radius:50%; pointer-events:none; z-index:9998; box-shadow:0 0 10px #fff; }
+</style>
+</head>
+<body>
+<div class="ambient-bg">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+</div>
+<div class="noise-overlay"></div>
+
+<!-- 光标 -->
+<div class="cursor-wrapper" id="cursorWrapper">
+  <div class="cursor-dot"></div>
+  <div class="cursor-ring"></div>
+  <div class="cursor-glow"></div>
+</div>
+
+<main class="flex items-center justify-center min-h-screen p-4">
+  <div class="glass-container" id="glassCard">
+    <div class="glass-reflection"></div>
+    <div class="glass-border-glow"></div>
+
+    <div class="text-center z-10">
+      <h1 class="arc-title" id="arcTitle">Arc</h1>
+      <p class="arc-subtitle">Navigate the Digital Void</p>
+    </div>
+
+    <div class="btn-group z-10">
+      <a href="login_page.html" class="liquid-btn btn-primary magnetic-btn">
+        <div class="btn-shine"></div>
+        <span class="btn-glow"></span>
+        <i class="fa-solid fa-fingerprint"></i>
+        <span>登录 / 注册</span>
+      </a>
+      <a href="unlogin_menu.html" class="liquid-btn btn-secondary magnetic-btn">
+        <div class="btn-shine"></div>
+        <span class="btn-glow"></span>
+        <i class="fa-solid fa-paper-plane"></i>
+        <span>游客进入</span>
+      </a>
+    </div>
+
+    <div class="mt-4 text-[10px] text-slate-500 font-mono tracking-[0.3em] opacity-40 uppercase z-10">
+      System Online // v4.0 Enhanced
+    </div>
+  </div>
+</main>
+
+<script>
+const cursorWrapper = document.getElementById('cursorWrapper');
+const cursorRing = document.querySelector('.cursor-ring');
+const glassCard = document.getElementById('glassCard');
+const buttons = document.querySelectorAll('.liquid-btn');
+const arcTitle = document.getElementById('arcTitle');
+
+document.addEventListener('mousemove', (e) => {
+  const x = e.clientX, y = e.clientY;
+  cursorWrapper.style.left = x + 'px';
+  cursorWrapper.style.top = y + 'px';
+  setTimeout(() => { cursorRing.style.transform = 'translate(-50%,-50%) scale(1.2)'; }, 50);
+  document.documentElement.style.setProperty('--mouse-x', x + 'px');
+  document.documentElement.style.setProperty('--mouse-y', y + 'px');
+  buttons.forEach(btn => {
+    const r = btn.getBoundingClientRect();
+    btn.style.setProperty('--mouse-x', ((x - r.left) / r.width * 100) + '%');
+    btn.style.setProperty('--mouse-y', ((y - r.top) / r.height * 100) + '%');
+  });
+  if (glassCard) {
+    const r = glassCard.getBoundingClientRect();
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    const ry = ((x - cx) / (window.innerWidth / 2)) * 10;
+    const rx = -((y - cy) / (window.innerHeight / 2)) * 10;
+    glassCard.style.transform = 'perspective(1000px) rotateX(' + rx + 'deg) rotateY(' + ry + 'deg)';
+  }
+  if (arcTitle) {
+    const r = glassCard.getBoundingClientRect();
+    const tx = (x - r.left - r.width / 2) / 25;
+    const ty = (y - r.top - r.height / 2) / 25;
+    arcTitle.style.transform = 'translate(' + tx + 'px,' + ty + 'px)';
+  }
+});
+
+document.addEventListener('mousedown', (e) => {
+  cursorWrapper.style.opacity = '0';
+  cursorRing.style.transform = 'translate(-50%,-50%) scale(0.8)';
+  createClickParticles(e.clientX, e.clientY);
+});
+document.addEventListener('mouseup', () => {
+  cursorWrapper.style.opacity = '1';
+  cursorRing.style.transform = 'translate(-50%,-50%) scale(1)';
+});
+
+buttons.forEach(btn => {
+  btn.addEventListener('mousemove', (e) => {
+    const r = btn.getBoundingClientRect();
+    const x = e.clientX - r.left - r.width / 2;
+    const y = e.clientY - r.top - r.height / 2;
+    btn.style.transform = 'translate(' + (x * 0.15) + 'px,' + (y * 0.15) + 'px) translateY(-5px)';
+  });
+  btn.addEventListener('mouseleave', () => { btn.style.transform = 'translate(0,0)'; });
+});
+
+function createClickParticles(x, y) {
+  for (let i = 0; i < 12; i++) {
+    const p = document.createElement('div');
+    p.classList.add('click-particle');
+    document.body.appendChild(p);
+    const a = (Math.PI * 2 * i) / 12;
+    const v = 60 + Math.random() * 40;
+    const tx = Math.cos(a) * v, ty = Math.sin(a) * v;
+    p.style.left = x + 'px';
+    p.style.top = y + 'px';
+    p.style.transition = 'all 0.8s cubic-bezier(0,.9,.57,1)';
+    setTimeout(() => { p.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(0)'; p.style.opacity = '0'; }, 10);
+    setTimeout(() => p.remove(), 800);
+  }
+}
+
+buttons.forEach(btn => {
+  btn.addEventListener('click', function(e) {
+    const ripple = document.createElement('span');
+    ripple.style.cssText = 'position:absolute;background:rgba(255,255,255,0.4);border-radius:50%;pointer-events:none;transform:scale(0);animation:ripple-anim 0.8s linear;';
+    const r = this.getBoundingClientRect();
+    const s = Math.max(r.width, r.height);
+    ripple.style.width = ripple.style.height = s + 'px';
+    ripple.style.left = (e.clientX - r.left - s / 2) + 'px';
+    ripple.style.top = (e.clientY - r.top - s / 2) + 'px';
+    this.appendChild(ripple);
+    setTimeout(() => ripple.remove(), 800);
+  });
+});
+const ss = document.createElement('style');
+ss.innerText = '@keyframes ripple-anim { to { transform: scale(4); opacity: 0; } }';
+document.head.appendChild(ss);
+</script>
+</body>
+</html>
