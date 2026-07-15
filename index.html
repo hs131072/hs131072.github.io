@@ -1,11 +1,350 @@
+
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>我的网站</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arc - 探索未来</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --mouse-x: 50%; --mouse-y: 50%; }
+        body { margin: 0; padding: 0; overflow: hidden; background-color: #020617; font-family: 'Inter', sans-serif; cursor: none; }
+
+        /* 1. 复杂化背景：增加噪点与多层流体 */
+        .ambient-bg { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: -3; 
+            background: radial-gradient(circle at 50% 50%, #1e1b4b 0%, #0f172a 100%); 
+        }
+        
+        /* 动态噪点层 */
+        .noise-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+            pointer-events: none; z-index: -1; opacity: 0.4;
+        }
+
+        .orb { 
+            position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.6; 
+            animation: fluid-move 15s infinite ease-in-out alternate; 
+        }
+        .orb-1 { 
+            width: 60vw; height: 60vw; 
+            background: conic-gradient(from 0deg, #3b82f6, #8b5cf6, #ec4899, #3b82f6); 
+            top: -30%; left: -20%; animation-duration: 20s;
+        }
+        .orb-2 { 
+            width: 50vw; height: 50vw; 
+            background: conic-gradient(from 180deg, #06b6d4, #3b82f6, #6366f1, #06b6d4); 
+            bottom: -20%; right: -15%; animation-duration: 25s; animation-delay: -5s;
+        }
+        .orb-3 {
+            width: 30vw; height: 30vw;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            top: 40%; left: 40%; animation: pulse-glow 8s infinite ease-in-out;
+        }
+
+        @keyframes fluid-move { 
+            0% { transform: translate(0, 0) rotate(0deg) scale(1); } 
+            100% { transform: translate(50px, 30px) rotate(20deg) scale(1.1); } 
+        }
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.2); }
+        }
+
+        /* 2. 增强型鼠标光标：增加外环与拖尾 */
+        .cursor-wrapper { 
+            position: fixed; top: 0; left: 0; pointer-events: none; z-index: 9999; 
+            transform: translate(-50%, -50%); transition: opacity 0.2s, transform 0.1s; 
+        }
+        .cursor-dot { 
+            width: 6px; height: 6px; background-color: white; border-radius: 50%; 
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.8); 
+        }
+        .cursor-ring {
+            position: absolute; top: 50%; left: 50%; width: 40px; height: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 50%;
+            transform: translate(-50%, -50%); transition: all 0.15s ease-out;
+        }
+        .cursor-glow { 
+            position: absolute; top: 50%; left: 50%; width: 400px; height: 400px; 
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.08) 0%, transparent 50%); 
+            transform: translate(-50%, -50%); mix-blend-mode: screen; 
+        }
+
+        /* 3. 极致玻璃卡片：多重边框与内发光 */
+        .glass-container {
+            position: relative; width: 100%; max-width: 650px; padding: 4rem 3.5rem; 
+            border-radius: 40px;
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(40px) saturate(180%); -webkit-backdrop-filter: blur(40px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 
+                0 40px 80px -20px rgba(0, 0, 0, 0.5),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+                inset 0 0 60px rgba(255, 255, 255, 0.02);
+            transform-style: preserve-3d; transition: transform 0.1s ease-out;
+            display: flex; flex-direction: column; align-items: center; gap: 3rem;
+            overflow: hidden;
+        }
+
+        /* 复杂反光层：模拟真实玻璃折射 */
+        .glass-reflection {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: 
+                radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.1) 0%, transparent 40%),
+                linear-gradient(125deg, rgba(255,255,255,0.05) 0%, transparent 40%, rgba(255,255,255,0.02) 100%);
+            pointer-events: none; z-index: 1;
+        }
+
+        /* 装饰性光边 */
+        .glass-border-glow {
+            position: absolute; top: -2px; left: -2px; right: -2px; bottom: -2px;
+            background: linear-gradient(45deg, transparent 40%, rgba(255,255,255,0.1) 50%, transparent 60%);
+            border-radius: 42px; z-index: -1; opacity: 0; transition: opacity 0.5s;
+        }
+        .glass-container:hover .glass-border-glow { opacity: 1; }
+
+        /* 4. Arc 标题：全息光泽效果 */
+        .arc-title {
+            font-size: 5rem; font-weight: 900; letter-spacing: -0.05em;
+            background: linear-gradient(135deg, #fff 0%, #cbd5e1 50%, #94a3b8 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            position: relative; z-index: 10; transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            filter: drop-shadow(0 0 20px rgba(255,255,255,0.1));
+        }
+        .arc-title:hover {
+            transform: scale(1.05) translateY(-5px);
+            filter: drop-shadow(0 0 40px rgba(255,255,255,0.3));
+        }
+        .arc-title::before {
+            content: 'Arc'; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent);
+            background-size: 200% 100%; background-position: -100% 0;
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            opacity: 0; transition: opacity 0.3s;
+        }
+        .arc-title:hover::before {
+            animation: shine-sweep 1.5s infinite linear; opacity: 0.6;
+        }
+        @keyframes shine-sweep { 0% { background-position: -100% 0; } 100% { background-position: 200% 0; } }
+
+        .arc-subtitle { 
+            color: #94a3b8; font-size: 1.1rem; font-weight: 400; letter-spacing: 0.2em; 
+            text-transform: uppercase; position: relative; z-index: 10;
+        }
+        .arc-subtitle::after {
+            content: ''; display: block; width: 40px; height: 1px; background: rgba(255,255,255,0.2);
+            margin: 1rem auto 0; transition: width 0.5s;
+        }
+        .glass-container:hover .arc-subtitle::after { width: 80px; background: rgba(255,255,255,0.5); }
+
+        /* 5. 按钮：液态光效与磁吸 */
+        .btn-group { display: flex; gap: 2rem; width: 100%; justify-content: center; perspective: 1000px; }
+        .liquid-btn {
+            position: relative; padding: 1.2rem 2.5rem; border-radius: 20px; font-weight: 600; color: white; text-decoration: none;
+            border: 1px solid rgba(255, 255, 255, 0.1); min-width: 180px; display: flex; align-items: center; justify-content: center; gap: 0.8rem;
+            transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1); overflow: hidden; 
+            background: rgba(255, 255, 255, 0.03);
+            box-shadow: 0 10px 30px -10px rgba(0,0,0,0.2);
+        }
+        .btn-primary { background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%); }
+        .btn-primary:hover { 
+            border-color: rgba(255,255,255,0.3); 
+            box-shadow: 0 20px 40px -10px rgba(56, 189, 248, 0.4);
+            transform: translateY(-5px);
+        }
+        .btn-secondary:hover { 
+            border-color: rgba(255,255,255,0.2); 
+            box-shadow: 0 20px 40px -10px rgba(232, 121, 249, 0.2);
+            transform: translateY(-5px);
+        }
+        
+        /* 按钮内部流光 */
+        .btn-shine {
+            position: absolute; top: 0; left: -100%; width: 50%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transform: skewX(-20deg); transition: left 0.5s;
+        }
+        .liquid-btn:hover .btn-shine { left: 150%; transition: left 0.7s ease-in-out; }
+
+        .btn-glow { 
+            position: absolute; width: 100%; height: 100%; top: 0; left: 0; 
+            background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.15) 0%, transparent 60%); 
+            opacity: 0; transition: opacity 0.3s; pointer-events: none; 
+        }
+        .liquid-btn:hover .btn-glow { opacity: 1; }
+
+        /* 点击粒子 */
+        .click-particle {
+            position: fixed; width: 4px; height: 4px; background: white; border-radius: 50%;
+            pointer-events: none; z-index: 9998; box-shadow: 0 0 10px white;
+        }
+    </style>
 </head>
 <body>
-    <h1>Hello, GitHub Pages!</h1>
-    <p>我的第一个网站</p>
+    <div class="ambient-bg">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+    <div class="noise-overlay"></div>
+    
+    <!-- 鼠标光标 -->
+    <div class="cursor-wrapper" id="cursorWrapper">
+        <div class="cursor-dot"></div>
+        <div class="cursor-ring"></div>
+        <div class="cursor-glow"></div>
+    </div>
+
+    <main class="flex items-center justify-center min-h-screen p-4">
+        <div class="glass-container" id="glassCard">
+            <div class="glass-reflection"></div>
+            <div class="glass-border-glow"></div>
+            
+            <div class="text-center z-10">
+                <h1 class="arc-title" id="arcTitle">Arc</h1>
+                <p class="arc-subtitle">Navigate the Digital Void</p>
+            </div>
+            
+            <div class="btn-group z-10">
+                <a href="login_page.html" class="liquid-btn btn-primary magnetic-btn">
+                    <div class="btn-shine"></div>
+                    <span class="btn-glow"></span>
+                    <i class="fa-solid fa-fingerprint"></i>
+                    <span>登录 / 注册</span>
+                </a>
+                <a href="unlogin_menu.html" class="liquid-btn btn-secondary magnetic-btn">
+                    <div class="btn-shine"></div>
+                    <span class="btn-glow"></span>
+                    <i class="fa-solid fa-paper-plane"></i>
+                    <span>游客进入</span>
+                </a>
+            </div>
+
+            <div class="mt-4 text-[10px] text-slate-500 font-mono tracking-[0.3em] opacity-40 uppercase z-10">
+                System Online // v4.0 Enhanced
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const cursorWrapper = document.getElementById('cursorWrapper');
+        const cursorRing = document.querySelector('.cursor-ring');
+        const glassCard = document.getElementById('glassCard');
+        const buttons = document.querySelectorAll('.liquid-btn');
+        const arcTitle = document.getElementById('arcTitle');
+
+        // 鼠标移动逻辑
+        document.addEventListener('mousemove', (e) => {
+            const x = e.clientX; const y = e.clientY;
+            
+            // 光标主体跟随
+            cursorWrapper.style.left = `${x}px`; 
+            cursorWrapper.style.top = `${y}px`;
+
+            // 外环延迟跟随（增加灵动感）
+            setTimeout(() => {
+                cursorRing.style.transform = `translate(-50%, -50%) scale(1.2)`;
+            }, 50);
+
+            // 更新全局变量用于 CSS 渐变定位
+            document.documentElement.style.setProperty('--mouse-x', `${x}px`);
+            document.documentElement.style.setProperty('--mouse-y', `${y}px`);
+
+            // 按钮内部光效
+            buttons.forEach(btn => {
+                const rect = btn.getBoundingClientRect();
+                btn.style.setProperty('--mouse-x', `${((x - rect.left) / rect.width) * 100}%`);
+                btn.style.setProperty('--mouse-y', `${((y - rect.top) / rect.height) * 100}%`);
+            });
+
+            // 卡片 3D 倾斜
+            if (glassCard) {
+                const rect = glassCard.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2; 
+                const centerY = rect.top + rect.height / 2;
+                const rotateY = ((x - centerX) / (window.innerWidth / 2)) * 10;
+                const rotateX = -((y - centerY) / (window.innerHeight / 2)) * 10;
+                glassCard.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+            }
+
+            // Arc 标题视差偏移
+            if (arcTitle) {
+                const rect = glassCard.getBoundingClientRect();
+                const titleX = (x - rect.left - rect.width/2) / 25;
+                const titleY = (y - rect.top - rect.height/2) / 25;
+                arcTitle.style.transform = `translate(${titleX}px, ${titleY}px)`;
+            }
+        });
+
+        // 点击时隐藏鼠标光点并触发粒子
+        document.addEventListener('mousedown', (e) => {
+            cursorWrapper.style.opacity = '0';
+            cursorRing.style.transform = `translate(-50%, -50%) scale(0.8)`;
+            createClickParticles(e.clientX, e.clientY);
+        });
+        document.addEventListener('mouseup', () => {
+            cursorWrapper.style.opacity = '1';
+            cursorRing.style.transform = `translate(-50%, -50%) scale(1)`;
+        });
+
+        // 按钮磁吸效果
+        buttons.forEach(btn => {
+            btn.addEventListener('mousemove', (e) => {
+                const rect = btn.getBoundingClientRect();
+                const x = e.clientX - rect.left - rect.width / 2;
+                const y = e.clientY - rect.top - rect.height / 2;
+                btn.style.transform = `translate(${x * 0.15}px, ${y * 0.15}px) translateY(-5px)`;
+            });
+            btn.addEventListener('mouseleave', () => {
+                btn.style.transform = 'translate(0, 0)';
+            });
+        });
+
+        // 点击粒子爆发特效
+        function createClickParticles(x, y) {
+            for (let i = 0; i < 12; i++) {
+                const particle = document.createElement('div');
+                particle.classList.add('click-particle');
+                document.body.appendChild(particle);
+                
+                const angle = (Math.PI * 2 * i) / 12;
+                const velocity = 60 + Math.random() * 40;
+                const tx = Math.cos(angle) * velocity;
+                const ty = Math.sin(angle) * velocity;
+                
+                particle.style.left = `${x}px`;
+                particle.style.top = `${y}px`;
+                particle.style.transition = 'all 0.8s cubic-bezier(0, .9, .57, 1)';
+                
+                setTimeout(() => {
+                    particle.style.transform = `translate(${tx}px, ${ty}px) scale(0)`;
+                    particle.style.opacity = '0';
+                }, 10);
+                
+                setTimeout(() => particle.remove(), 800);
+            }
+        }
+
+        // 涟漪特效
+        buttons.forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                let ripple = document.createElement('span');
+                ripple.style.cssText = `position:absolute; background:rgba(255,255,255,0.4); border-radius:50%; pointer-events:none; transform:scale(0); animation:ripple-anim 0.8s linear;`;
+                const rect = this.getBoundingClientRect();
+                const size = Math.max(rect.width, rect.height);
+                ripple.style.width = ripple.style.height = `${size}px`;
+                ripple.style.left = `${e.clientX - rect.left - size/2}px`;
+                ripple.style.top = `${e.clientY - rect.top - size/2}px`;
+                this.appendChild(ripple);
+                setTimeout(() => ripple.remove(), 800);
+            });
+        });
+        const styleSheet = document.createElement("style");
+        styleSheet.innerText = `@keyframes ripple-anim { to { transform: scale(4); opacity: 0; } }`;
+        document.head.appendChild(styleSheet);
+    </script>
 </body>
 </html>
