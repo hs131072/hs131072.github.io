@@ -1,25 +1,157 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2D 坦克大战 - Three.js</title>
+    <title>钢铁履带3D - 全装甲战争终极版</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { overflow: hidden; background: #000; font-family: 'Arial', sans-serif; }
-        canvas { display: block; }
-        
-        #ui {
+        :root {
+            --primary-color: #00ffcc;
+            --enemy-color: #ff3333;
+            --ally-color: #33ff33;
+            --bg-glass: rgba(10, 20, 30, 0.85);
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #050505;
+            font-family: 'Segoe UI', '微软雅黑', monospace;
+            user-select: none;
+        }
+
+        #game-container {
             position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+
+        /* UI层 */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             pointer-events: none;
+            z-index: 10;
+        }
+
+        /* 坦克标识 */
+        .tank-label {
+            position: absolute;
+            transform: translate(-50%, -100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 10px;
+            font-weight: bold;
+            text-shadow: 0 1px 2px black;
+            pointer-events: none;
+            transition: opacity 0.1s;
+        }
+
+        .tank-name {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-bottom: 4px;
+            white-space: nowrap;
+        }
+
+        .hp-bar-container {
+            width: 40px;
+            height: 4px;
+            background: #333;
+            border: 1px solid #000;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .hp-bar-fill {
+            height: 100%;
+            background: var(--ally-color);
+            width: 100%;
+            transition: width 0.2s ease-out, background-color 0.2s;
+        }
+
+        .enemy .tank-name { color: var(--enemy-color); }
+        .enemy .hp-bar-fill { background: var(--enemy-color); }
+        .ally .tank-name { color: var(--ally-color); }
+        .player .tank-name { color: #ffd700; font-size: 12px; border: 1px solid #ffd700; }
+        .稀有 .tank-name { color: #00bfff; }
+        .传奇 .tank-name { color: #ff8c00; }
+
+        /* HUD左上角 */
+        #hud-top-left {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            pointer-events: auto;
+        }
+
+        /* 小地图 */
+        #minimap-container {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 180px;
+            height: 180px;
+            background: var(--bg-glass);
+            border: 2px solid #444;
+            border-radius: 50%;
+            overflow: hidden;
+            pointer-events: auto;
         }
         
+        #minimap-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* 底部HUD */
+        #hud-bottom {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            align-items: flex-end;
+        }
+
+        .hud-panel {
+            background: var(--bg-glass);
+            border: 1px solid #444;
+            padding: 10px 20px;
+            border-radius: 8px;
+            color: white;
+            text-align: center;
+            min-width: 100px;
+        }
+
+        .hud-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .hud-label {
+            font-size: 10px;
+            color: #aaa;
+            text-transform: uppercase;
+        }
+
         #crosshair {
             position: absolute;
-            width: 30px; height: 30px;
-            border: 2px solid rgba(0,255,0,0.8);
-            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            width: 40px;
+            height: 40px;
             transform: translate(-50%, -50%);
             pointer-events: none;
         }
@@ -27,912 +159,1235 @@
         #crosshair::before, #crosshair::after {
             content: '';
             position: absolute;
-            background: rgba(0,255,0,0.8);
+            background: rgba(0, 255, 204, 0.8);
         }
-        #crosshair::before { width: 2px; height: 10px; top: 50%; left: 50%; transform: translate(-50%,-50%); }
-        #crosshair::after { width: 10px; height: 2px; top: 50%; left: 50%; transform: translate(-50%,-50%); }
         
-        #hud {
+        #crosshair::before { top: 19px; left: 0; width: 40px; height: 2px; }
+        #crosshair::after { left: 19px; top: 0; width: 2px; height: 40px; }
+
+        #reload-indicator {
             position: absolute;
-            top: 10px; left: 10px;
-            color: #0f0;
-            font-size: 14px;
-            text-shadow: 0 0 5px #0f0;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
             pointer-events: none;
         }
-        
-        #minimap {
+
+        #reload-bar {
             position: absolute;
-            bottom: 10px; right: 10px;
-            width: 200px; height: 200px;
-            border: 2px solid rgba(0,255,0,0.5);
-            background: rgba(0,0,0,0.7);
-            pointer-events: none;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 4px solid var(--primary-color);
+            box-sizing: border-box;
+            transform: rotate(-90deg);
+            transition: clip-path 0.1s linear;
         }
-        
-        #minimap canvas { width: 100%; height: 100%; }
-        
-        #gameOver {
+
+        #start-screen {
             position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%,-50%);
-            color: #fff;
-            font-size: 48px;
-            text-align: center;
-            display: none;
-            pointer-events: none;
-            text-shadow: 0 0 20px #f00;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
         }
-        
-        #shop {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%,-50%);
-            background: rgba(0,0,0,0.95);
-            border: 2px solid #0f0;
-            padding: 30px;
-            color: #0f0;
-            display: none;
-            pointer-events: all;
-            min-width: 600px;
-        }
-        
-        #shop h2 { text-align: center; margin-bottom: 20px; font-size: 28px; }
-        #shop .tank-card {
-            display: inline-block;
-            width: 150px;
-            padding: 15px;
-            margin: 10px;
-            border: 1px solid #0f0;
-            text-align: center;
+
+        button {
+            background: var(--primary-color);
+            border: none;
+            padding: 15px 40px;
+            font-size: 20px;
+            font-weight: bold;
             cursor: pointer;
-            transition: all 0.3s;
+            border-radius: 5px;
+            margin-top: 20px;
+            transition: transform 0.2s;
         }
-        #shop .tank-card:hover { background: rgba(0,255,0,0.2); transform: scale(1.05); }
-        #shop .tank-card.selected { border: 2px solid #ff0; background: rgba(255,255,0,0.2); }
-        #shop .tank-card h3 { margin-bottom: 8px; }
-        #shop .tank-card p { font-size: 11px; margin: 3px 0; }
-        #shop .coin-display { text-align: center; margin: 20px 0; font-size: 20px; }
-        #shop button {
-            display: block; margin: 20px auto 0;
-            padding: 10px 40px; font-size: 18px;
-            background: #0f0; color: #000; border: none;
-            cursor: pointer; font-weight: bold;
-        }
-        
-        #killFeed {
+
+        button:hover { transform: scale(1.05); }
+
+        .damage-overlay {
             position: absolute;
-            top: 10px; right: 10px;
-            color: #ff0; font-size: 12px;
-            text-align: right;
+            top: 0; left: 0; width: 100%; height: 100%;
+            box-shadow: inset 0 0 0 0 rgba(255, 0, 0, 0);
             pointer-events: none;
+            transition: box-shadow 0.2s;
+            z-index: 5;
+        }
+
+        /* 新增控制面板 */
+        #control-panel {
+            position: absolute;
+            top: 20px;
+            right: 220px;
+            background: var(--bg-glass);
+            padding: 15px;
+            border-radius: 8px;
+            color: white;
+            z-index: 20;
+            pointer-events: auto;
+            font-size: 12px;
+        }
+
+        #ammo-type-display {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, 120px);
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            text-shadow: 0 0 5px black;
         }
     </style>
+    <!-- 引入Three.js -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
 </head>
 <body>
-    <div id="ui">
+
+    <div id="game-container"></div>
+    <div class="damage-overlay" id="damage-overlay"></div>
+
+    <div id="ui-layer">
         <div id="crosshair"></div>
-        <div id="hud">
-            <div>❤️ 生命: <span id="hp">100</span></div>
-            <div>🎯 击杀: <span id="kills">0</span> / 5</div>
-            <div>🪙 金币: <span id="coins">0</span></div>
-            <div>🔫 坦克: <span id="tankName">-</span></div>
+        <div id="reload-indicator"><div id="reload-bar"></div></div>
+        <div id="ammo-type-display">弹药：穿甲弹</div>
+        
+        <div id="hud-top-left">
+            <div style="font-size: 14px; color: #aaa;">任务：全歼敌军装甲单位</div>
+            <div style="font-size: 24px; font-weight: bold;">得分：<span id="score-val">0</span></div>
+            <div style="font-size: 14px; margin-top: 5px;">友军剩余：<span id="ally-count">0</span></div>
+            <div style="font-size: 14px;">敌军剩余：<span id="enemy-count">0</span></div>
+            <div style="font-size: 14px; margin-top:5px;">击杀数：<span id="kill-count">0</span></div>
         </div>
-        <div id="minimap"><canvas id="minimapCanvas" width="200" height="200"></canvas></div>
-        <div id="killFeed"></div>
-        <div id="gameOver"></div>
-        <div id="shop">
-            <h2>🏪 坦克商店</h2>
-            <div class="coin-display">🪙 金币: <span id="shopCoins">0</span></div>
-            <div id="tankList"></div>
-            <button id="buyBtn">购买并战斗!</button>
+
+        <div id="hud-bottom">
+            <div class="hud-panel">
+                <div class="hud-value" id="hp-val">100%</div>
+                <div class="hud-label">车体完整度</div>
+            </div>
+            <div class="hud-panel">
+                <div class="hud-value" id="ammo-val">就绪</div>
+                <div class="hud-label">主炮状态</div>
+            </div>
+            <div class="hud-panel">
+                <div class="hud-value" id="speed-val">0 km/h</div>
+                <div class="hud-label">行驶速度</div>
+            </div>
+            <div class="hud-panel">
+                <div class="hud-value" id="shell-count">∞</div>
+                <div class="hud-label">弹药</div>
+            </div>
+        </div>
+
+        <div id="minimap-container">
+            <canvas id="minimap-canvas"></canvas>
+        </div>
+
+        <div id="control-panel">
+            <div>操作说明：</div>
+            <div>WASD - 移动坦克</div>
+            <div>鼠标 - 瞄准炮塔</div>
+            <div>左键 - 发射炮弹</div>
+            <div>1/2/3 - 切换弹药类型</div>
+            <div>Shift - 加速冲刺</div>
+            <div>C - 切换视角模式</div>
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script>
-    // ==================== 坦克种类定义 ====================
-    const TANK_TYPES = {
-        m1a2_abrams: {
-            name: 'M1A2 艾布拉姆斯',
-            country: '🇺🇸 美国',
-            speed: 3.5,
-            armor: 100,
-            damage: 35,
-            fireRate: 1.2,
-            health: 150,
-            turretSpeed: 2.5,
-            bodyColor: 0x8B7355,
-            turretColor: 0x6B5344,
-            price: 0,
-            desc: '均衡型主战坦克，适合新手'
-        },
-        leopard2a7: {
-            name: '豹2A7',
-            country: '🇩🇪 德国',
-            speed: 4.2,
-            armor: 75,
-            damage: 40,
-            fireRate: 1.0,
-            health: 120,
-            turretSpeed: 3.0,
-            bodyColor: 0x4A5C3A,
-            turretColor: 0x3A4C2A,
-            price: 500,
-            desc: '高机动高伤害，装甲较薄'
-        },
-        challenger2: {
-            name: '挑战者2',
-            country: '🇬🇧 英国',
-            speed: 2.8,
-            armor: 130,
-            damage: 45,
-            fireRate: 0.8,
-            health: 180,
-            turretSpeed: 2.0,
-            bodyColor: 0x5C5C3A,
-            turretColor: 0x4C4C2A,
-            price: 800,
-            desc: '重甲重炮，移动缓慢'
-        },
-        t90ms: {
-            name: 'T-90MS',
-            country: '🇷🇺 俄罗斯',
-            speed: 3.8,
-            armor: 90,
-            damage: 38,
-            fireRate: 1.5,
-            health: 140,
-            turretSpeed: 2.8,
-            bodyColor: 0x5C6B4A,
-            turretColor: 0x4C5B3A,
-            price: 600,
-            desc: '俄系经典，性价比高'
-        },
-        merkava4: {
-            name: '梅卡瓦 Mk4',
-            country: '🇮🇱 以色列',
-            speed: 3.0,
-            armor: 120,
-            damage: 32,
-            fireRate: 1.3,
-            health: 160,
-            turretSpeed: 2.2,
-            bodyColor: 0x7A7A5A,
-            turretColor: 0x6A6A4A,
-            price: 700,
-            desc: '防御优先，生存能力强'
-        },
-        leclerc: {
-            name: '勒克莱尔',
-            country: '🇫🇷 法国',
-            speed: 4.5,
-            armor: 65,
-            damage: 36,
-            fireRate: 1.4,
-            health: 110,
-            turretSpeed: 3.5,
-            bodyColor: 0x6B7B5B,
-            turretColor: 0x5B6B4B,
-            price: 900,
-            desc: '极速战车，炮台转速最快'
-        },
-        type99a: {
-            name: '99A式',
-            country: '🇨🇳 中国',
-            speed: 3.6,
-            armor: 110,
-            damage: 42,
-            fireRate: 0.9,
-            health: 155,
-            turretSpeed: 2.3,
-            bodyColor: 0x4A6B3A,
-            turretColor: 0x3A5B2A,
-            price: 1000,
-            desc: '国产精锐，攻守兼备'
-        },
-        k2_blackpanther: {
-            name: 'K2 黑豹',
-            country: '🇰🇷 韩国',
-            speed: 4.0,
-            armor: 80,
-            damage: 37,
-            fireRate: 1.1,
-            health: 130,
-            turretSpeed: 3.2,
-            bodyColor: 0x5B6B5B,
-            turretColor: 0x4B5B4B,
-            price: 850,
-            desc: '韩系尖端，综合优秀'
-        }
+    <div id="start-screen">
+        <h1 style="font-size: 48px; text-transform: uppercase; letter-spacing: 5px;">钢铁履带3D - 全装甲战争</h1>
+        <p>WASD移动 | 鼠标瞄准 | 左键射击 | 共37款全球主战坦克可供对战</p>
+        <button id="start-btn">部署作战单位</button>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // ==========================================
+        // 1. 全量升级配置与37款坦克数据库
+        // ==========================================
+        
+        const CONFIG = {
+            mapSize: 800,
+            tankCount: 60, // 60辆坦克超大战场规模
+            viewDistance: 250,
+            shadowMapSize: 4096, // 高清阴影画质
+            colors: {
+                ground: 0x3a3a3a,
+                grid: 0x555555,
+                sky: 0x87CEEB
+            }
+        };
+
+// ===== 100款覆盖现代/二战/概念的坦克数据库 =====
+const TANK_DATABASE = [
+    // ========== 现代主战坦克 (1-40) ==========
+    { name: "M1A2 艾布拉姆斯", country: "美国", hp: 1200, speed: 1.2, damage: 350, reload: 2500, armor: 0.8, color: 0x5d6d46, 稀有度: "普通", era: "modern" },
+    { name: "豹2A7", country: "德国", hp: 1100, speed: 1.3, damage: 320, reload: 2200, armor: 0.75, color: 0x4b5320, 稀有度: "普通", era: "modern" },
+    { name: "99A式", country: "中国", hp: 1150, speed: 1.25, damage: 340, reload: 2300, armor: 0.82, color: 0x3a4d39, 稀有度: "稀有", era: "modern" },
+    { name: "挑战者2", country: "英国", hp: 1300, speed: 0.9, damage: 380, reload: 2800, armor: 0.9, color: 0x4a5d23, 稀有度: "稀有", era: "modern" },
+    { name: "T-90M", country: "俄罗斯", hp: 1050, speed: 1.4, damage: 310, reload: 2100, armor: 0.7, color: 0x3d4c38, 稀有度: "普通", era: "modern" },
+    { name: "梅卡瓦4", country: "以色列", hp: 1180, speed: 1.1, damage: 330, reload: 2400, armor: 0.85, color: 0x6d6e54, 稀有度: "稀有", era: "modern" },
+    { name: "勒克莱尔", country: "法国", hp: 1000, speed: 1.5, damage: 300, reload: 2000, armor: 0.65, color: 0xc2b280, 稀有度: "普通", era: "modern" },
+    { name: "10式坦克", country: "日本", hp: 950, speed: 1.6, damage: 290, reload: 1900, armor: 0.6, color: 0x556b2f, 稀有度: "普通", era: "modern" },
+    { name: "K2黑豹", country: "韩国", hp: 1120, speed: 1.35, damage: 325, reload: 2250, armor: 0.78, color: 0x4b5320, 稀有度: "稀有", era: "modern" },
+    { name: "阿琼MK-II", country: "印度", hp: 1080, speed: 1.15, damage: 315, reload: 2350, armor: 0.72, color: 0xd2b48c, 稀有度: "普通", era: "modern" },
+    { name: "T-14阿玛塔", country: "俄罗斯", hp: 1350, speed: 1.45, damage: 370, reload: 2000, armor: 0.92, color: 0x444444, 稀有度: "传奇", era: "modern" },
+    { name: "M1A1HA", country: "美国", hp: 1100, speed: 1.25, damage: 320, reload: 2400, armor: 0.75, color: 0x654321, 稀有度: "普通", era: "modern" },
+    { name: "豹2A6", country: "德国", hp: 1080, speed: 1.32, damage: 330, reload: 2150, armor: 0.76, color: 0x3c4a2f, 稀有度: "普通", era: "modern" },
+    { name: "96B式", country: "中国", hp: 920, speed: 1.4, damage: 280, reload: 1950, armor: 0.62, color: 0x415238, 稀有度: "普通", era: "modern" },
+    { name: "ZTZ-99", country: "中国", hp: 1100, speed: 1.3, damage: 340, reload: 2300, armor: 0.8, color: 0x3d4c38, 稀有度: "稀有", era: "modern" },
+    { name: "阿尔泰", country: "土耳其", hp: 1000, speed: 1.3, damage: 300, reload: 2100, armor: 0.7, color: 0x8b7355, 稀有度: "普通", era: "modern" },
+    { name: "公羊C1", country: "意大利", hp: 980, speed: 1.35, damage: 290, reload: 2000, armor: 0.68, color: 0x7a8b6f, 稀有度: "普通", era: "modern" },
+    { name: "PT-91", country: "波兰", hp: 900, speed: 1.2, damage: 270, reload: 1900, armor: 0.65, color: 0x5a6b4f, 稀有度: "普通", era: "modern" },
+    { name: "AMX-56勒克莱尔", country: "法国", hp: 1020, speed: 1.55, damage: 310, reload: 1950, armor: 0.67, color: 0xb8a88a, 稀有度: "普通", era: "modern" },
+    { name: "梅卡瓦3", country: "以色列", hp: 1100, speed: 1.05, damage: 310, reload: 2200, armor: 0.8, color: 0x6b6d50, 稀有度: "稀有", era: "modern" },
+    { name: "T-84", country: "乌克兰", hp: 1050, speed: 1.35, damage: 300, reload: 2100, armor: 0.72, color: 0x4a5b38, 稀有度: "普通", era: "modern" },
+    { name: "Strv 122", country: "瑞典", hp: 1100, speed: 1.2, damage: 340, reload: 2300, armor: 0.8, color: 0x5c6b4a, 稀有度: "稀有", era: "modern" },
+    { name: "台风-K", country: "奥地利", hp: 1000, speed: 1.3, damage: 300, reload: 2000, armor: 0.7, color: 0x7a8b6f, 稀有度: "普通", era: "modern" },
+    { name: "M60-2000", country: "美国", hp: 980, speed: 1.15, damage: 280, reload: 1900, armor: 0.65, color: 0x6b5b3a, 稀有度: "普通", era: "modern" },
+    { name: "T-80U", country: "俄罗斯", hp: 1000, speed: 1.5, damage: 300, reload: 2000, armor: 0.68, color: 0x4a5b38, 稀有度: "普通", era: "modern" },
+    { name: "阿勒琼", country: "印度", hp: 1050, speed: 1.2, damage: 310, reload: 2200, armor: 0.74, color: 0xc4a060, 稀有度: "普通", era: "modern" },
+    { name: "Oplot-M", country: "乌克兰", hp: 1150, speed: 1.3, damage: 330, reload: 2150, armor: 0.78, color: 0x5a6b4a, 稀有度: "稀有", era: "modern" },
+    { name: "M-84AS", country: "塞尔维亚", hp: 980, speed: 1.25, damage: 290, reload: 2000, armor: 0.7, color: 0x6b5b3a, 稀有度: "普通", era: "modern" },
+    { name: "T-72B3", country: "俄罗斯", hp: 1050, speed: 1.35, damage: 310, reload: 2050, armor: 0.72, color: 0x4a5b38, 稀有度: "普通", era: "modern" },
+    { name: "VT-4", country: "中国", hp: 1100, speed: 1.3, damage: 330, reload: 2200, armor: 0.78, color: 0x3d4c38, 稀有度: "稀有", era: "modern" },
+    { name: "阿兹拉", country: "约旦", hp: 950, speed: 1.25, damage: 270, reload: 1900, armor: 0.65, color: 0x8b7355, 稀有度: "普通", era: "modern" },
+    { name: "LIP", country: "巴西", hp: 900, speed: 1.1, damage: 260, reload: 1800, armor: 0.6, color: 0x5a8b3a, 稀有度: "普通", era: "modern" },
+    { name: "Sabra Mk.3", country: "以色列", hp: 1200, speed: 1.15, damage: 350, reload: 2400, armor: 0.88, color: 0x6d6e54, 稀有度: "稀有", era: "modern" },
+    { name: "T-62M", country: "俄罗斯", hp: 950, speed: 1.4, damage: 280, reload: 1950, armor: 0.65, color: 0x4a5b38, 稀有度: "普通", era: "modern" },
+    { name: "MBT-2000", country: "巴基斯坦", hp: 1050, speed: 1.2, damage: 300, reload: 2100, armor: 0.72, color: 0x6b5b3a, 稀有度: "普通", era: "modern" },
+    { name: "T-55AM", country: "捷克", hp: 900, speed: 1.3, damage: 260, reload: 1850, armor: 0.62, color: 0x5a6b4a, 稀有度: "普通", era: "modern" },
+    { name: "CM-11", country: "台湾", hp: 1000, speed: 1.25, damage: 300, reload: 2000, armor: 0.7, color: 0x6b5b3a, 稀有度: "普通", era: "modern" },
+    { name: "台风2A5", country: "德国", hp: 1150, speed: 1.28, damage: 340, reload: 2250, armor: 0.82, color: 0x4b5320, 稀有度: "稀有", era: "modern" },
+    { name: "艾布拉姆斯X", country: "美国", hp: 1400, speed: 1.35, damage: 400, reload: 2600, armor: 0.9, color: 0x3d3d3d, 稀有度: "传奇", era: "modern" },
+    { name: "M10布克", country: "美国", hp: 800, speed: 2.0, damage: 200, reload: 1500, armor: 0.5, color: 0x6b5b3a, 稀有度: "普通", era: "modern" },
+
+    // ========== 二战经典坦克 (41-75) ==========
+    { name: "虎式坦克", country: "德国", hp: 800, speed: 0.8, damage: 400, reload: 3500, armor: 0.95, color: 0x5a5a4a, 稀有度: "传奇", era: "ww2" },
+    { name: "豹式坦克", country: "德国", hp: 700, speed: 1.1, damage: 350, reload: 3000, armor: 0.8, color: 0x4a4a3a, 稀有度: "传奇", era: "ww2" },
+    { name: "T-34/76", country: "苏联", hp: 600, speed: 1.3, damage: 300, reload: 2800, armor: 0.7, color: 0x4a5a3a, 稀有度: "稀有", era: "ww2" },
+    { name: "T-34/85", country: "苏联", hp: 650, speed: 1.25, damage: 320, reload: 2700, armor: 0.75, color: 0x4a5a3a, 稀有度: "稀有", era: "ww2" },
+    { name: "IS-2重型坦克", country: "苏联", hp: 900, speed: 0.9, damage: 500, reload: 4000, armor: 0.9, color: 0x4a5a3a, 稀有度: "传奇", era: "ww2" },
+    { name: "KV-1", country: "苏联", hp: 850, speed: 0.7, damage: 450, reload: 3800, armor: 0.92, color: 0x4a5a3a, 稀有度: "传奇", era: "ww2" },
+    { name: "谢尔曼M4", country: "美国", hp: 550, speed: 1.5, damage: 280, reload: 2400, armor: 0.6, color: 0x6b6b4a, 稀有度: "普通", era: "ww2" },
+    { name: "谢尔曼萤火虫", country: "英国", hp: 550, speed: 1.4, damage: 450, reload: 3200, armor: 0.65, color: 0x5a6b4a, 稀有度: "稀有", era: "ww2" },
+    { name: "丘吉尔坦克", country: "英国", hp: 700, speed: 0.8, damage: 320, reload: 3000, armor: 0.85, color: 0x5a5a4a, 稀有度: "稀有", era: "ww2" },
+    { name: "克伦威尔", country: "英国", hp: 500, speed: 1.8, damage: 260, reload: 2200, armor: 0.55, color: 0x6b6b4a, 稀有度: "普通", era: "ww2" },
+    { name: " Matilda II", country: "英国", hp: 600, speed: 0.9, damage: 250, reload: 2500, armor: 0.88, color: 0x5a5a4a, 稀有度: "稀有", era: "ww2" },
+    { name: "百夫长", country: "英国", hp: 650, speed: 1.0, damage: 330, reload: 2800, armor: 0.78, color: 0x5a6b4a, 稀有度: "稀有", era: "ww2" },
+    { name: "潘兴M26", country: "美国", hp: 700, speed: 1.2, damage: 380, reload: 3000, armor: 0.75, color: 0x6b6b4a, 稀有度: "稀有", era: "ww2" },
+    { name: "M24霞飞", country: "美国", hp: 450, speed: 2.0, damage: 240, reload: 2000, armor: 0.5, color: 0x6b6b4a, 稀有度: "普通", era: "ww2" },
+    { name: "四号坦克", country: "德国", hp: 550, speed: 1.1, damage: 300, reload: 2600, armor: 0.7, color: 0x5a5a4a, 稀有度: "普通", era: "ww2" },
+    { name: "三号突击炮", country: "德国", hp: 500, speed: 1.2, damage: 320, reload: 2700, armor: 0.65, color: 0x5a5a4a, 稀有度: "普通", era: "ww2" },
+    { name: "猎豹坦克歼击车", country: "德国", hp: 450, speed: 1.5, damage: 350, reload: 2800, armor: 0.6, color: 0x5a5a4a, 稀有度: "稀有", era: "ww2" },
+    { name: "象式歼击车", country: "德国", hp: 650, speed: 0.6, damage: 450, reload: 3500, armor: 0.9, color: 0x5a5a4a, 稀有度: "传奇", era: "ww2" },
+    { name: "鼠式超重型", country: "德国", hp: 1200, speed: 0.4, damage: 600, reload: 5000, armor: 0.98, color: 0x3a3a3a, 稀有度: "传奇", era: "ww2" },
+    { name: "ISU-152", country: "苏联", hp: 750, speed: 0.8, damage: 550, reload: 4200, armor: 0.8, color: 0x4a5a3a, 稀有度: "传奇", era: "ww2" },
+    { name: "SU-100", country: "苏联", hp: 600, speed: 1.0, damage: 400, reload: 3200, armor: 0.7, color: 0x4a5a3a, 稀有度: "稀有", era: "ww2" },
+    { name: "T-70", country: "苏联", hp: 400, speed: 1.7, damage: 200, reload: 1800, armor: 0.5, color: 0x4a5a3a, 稀有度: "普通", era: "ww2" },
+    { name: "BT-7", country: "苏联", hp: 450, speed: 1.8, damage: 220, reload: 1900, armor: 0.45, color: 0x4a5a3a, 稀有度: "普通", era: "ww2" },
+    { name: "索玛S35", country: "法国", hp: 550, speed: 1.1, damage: 290, reload: 2600, armor: 0.72, color: 0x5a5a4a, 稀有度: "稀有", era: "ww2" },
+    { name: "雷诺B1", country: "法国", hp: 600, speed: 0.9, damage: 300, reload: 2800, armor: 0.78, color: 0x5a5a4a, 稀有度: "稀有", era: "ww2" },
+    { name: "M13/40", country: "意大利", hp: 450, speed: 1.0, damage: 250, reload: 2200, armor: 0.55, color: 0x7a6a4a, 稀有度: "普通", era: "ww2" },
+    { name: "P26/40", country: "意大利", hp: 500, speed: 1.1, damage: 280, reload: 2400, armor: 0.6, color: 0x7a6a4a, 稀有度: "普通", era: "ww2" },
+    { name: "九七式中战车", country: "日本", hp: 450, speed: 1.2, damage: 240, reload: 2300, armor: 0.55, color: 0x5a6a4a, 稀有度: "普通", era: "ww2" },
+    { name: "一式中战车", country: "日本", hp: 500, speed: 1.1, damage: 260, reload: 2400, armor: 0.6, color: 0x5a6a4a, 稀有度: "普通", era: "ww2" },
+    { name: "三式中战车", country: "日本", hp: 550, speed: 1.0, damage: 280, reload: 2500, armor: 0.65, color: 0x5a6a4a, 稀有度: "普通", era: "ww2" },
+    { name: "VK4502A 虎王", country: "德国", hp: 900, speed: 0.75, damage: 480, reload: 3800, armor: 0.93, color: 0x4a4a3a, 稀有度: "传奇", era: "ww2" },
+    { name: "IS-3", country: "苏联", hp: 950, speed: 0.85, damage: 520, reload: 4000, armor: 0.92, color: 0x4a5a3a, 稀有度: "传奇", era: "ww2" },
+    { name: "M26潘兴", country: "美国", hp: 750, speed: 1.15, damage: 390, reload: 3100, armor: 0.78, color: 0x6b6b4a, 稀有度: "稀有", era: "ww2" },
+    { name: "T29重型", country: "美国", hp: 1000, speed: 0.7, damage: 550, reload: 4500, armor: 0.92, color: 0x6b6b4a, 稀有度: "传奇", era: "ww2" },
+    { name: "A34彗星", country: "英国", hp: 650, speed: 1.4, damage: 340, reload: 2800, armor: 0.75, color: 0x5a6b4a, 稀有度: "稀有", era: "ww2" },
+    { name: "T28超重型", country: "美国", hp: 1100, speed: 0.5, damage: 580, reload: 5000, armor: 0.95, color: 0x5a5a4a, 稀有度: "传奇", era: "ww2" },
+    { name: "KV-2", country: "苏联", hp: 850, speed: 0.6, damage: 600, reload: 4500, armor: 0.9, color: 0x4a5a3a, 稀有度: "传奇", era: "ww2" },
+
+    // ========== 概念/未来坦克 (76-100) ==========
+    { name: "T-14阿玛塔改", country: "俄罗斯", hp: 1500, speed: 1.6, damage: 450, reload: 1800, armor: 0.95, color: 0x222222, 稀有度: "传奇", era: "future" },
+    { name: "GCV未来战车", country: "美国", hp: 1000, speed: 2.5, damage: 300, reload: 1200, armor: 0.6, color: 0x4a4a6a, 稀有度: "稀有", era: "future" },
+    { name: "KF51黑豹", country: "德国", hp: 1300, speed: 1.4, damage: 400, reload: 2000, armor: 0.88, color: 0x3a3a3a, 稀有度: "传奇", era: "future" },
+    { name: "EMBT欧洲主战", country: "欧洲", hp: 1200, speed: 1.3, damage: 380, reload: 2200, armor: 0.85, color: 0x5a5a6a, 稀有度: "传奇", era: "future" },
+    { name: "阿琼MK-II改", country: "印度", hp: 1300, speed: 1.3, damage: 380, reload: 2100, armor: 0.82, color: 0xd2b48c, 稀有度: "稀有", era: "future" },
+    { name: "type-10改", country: "日本", hp: 1100, speed: 1.8, damage: 350, reload: 1800, armor: 0.75, color: 0x556b2f, 稀有度: "稀有", era: "future" },
+    { name: "PL-01隐形坦克", country: "波兰", hp: 1100, speed: 1.5, damage: 360, reload: 2000, armor: 0.8, color: 0x1a1a1a, 稀有度: "传奇", era: "future" },
+    { name: "T-95重型", country: "俄罗斯", hp: 1800, speed: 1.0, damage: 600, reload: 3000, armor: 0.98, color: 0x3a3a3a, 稀有度: "传奇", era: "future" },
+    { name: "无人自主战车", country: "全球", hp: 800, speed: 2.8, damage: 280, reload: 1000, armor: 0.5, color: 0x7a7a8a, 稀有度: "稀有", era: "future" },
+    { name: "激光坦克原型", country: "美国", hp: 1000, speed: 1.2, damage: 500, reload: 1500, armor: 0.7, color: 0x2a4a7a, 稀有度: "传奇", era: "future" },
+    { name: "电磁轨道坦克", country: "中国", hp: 1200, speed: 1.4, damage: 550, reload: 2000, armor: 0.85, color: 0x1a3a6a, 稀有度: "传奇", era: "future" },
+    { name: "量子护盾坦克", country: "欧洲", hp: 1400, speed: 1.3, damage: 420, reload: 2200, armor: 0.95, color: 0x4a2a7a, 稀有度: "传奇", era: "future" },
+    { name: "仿生坦克", country: "日本", hp: 900, speed: 2.2, damage: 320, reload: 1600, armor: 0.6, color: 0x3a6a3a, 稀有度: "稀有", era: "future" },
+    { name: "纳米修复坦克", country: "以色列", hp: 1100, speed: 1.35, damage: 370, reload: 1900, armor: 0.88, color: 0x6a6a2a, 稀有度: "传奇", era: "future" },
+    { name: "核动力坦克", country: "俄罗斯", hp: 2000, speed: 1.1, damage: 700, reload: 2500, armor: 0.98, color: 0x4a1a1a, 稀有度: "传奇", era: "future" },
+    { name: "全息伪装坦克", country: "韩国", hp: 1000, speed: 1.5, damage: 340, reload: 1800, armor: 0.75, color: 0x4a4a8a, 稀有度: "稀有", era: "future" },
+    { name: "空投突击坦克", country: "美国", hp: 700, speed: 2.5, damage: 260, reload: 1400, armor: 0.55, color: 0x6a6a4a, 稀有度: "稀有", era: "future" },
+    { name: "两栖机甲坦克", country: "中国", hp: 1200, speed: 1.2, damage: 380, reload: 2000, armor: 0.82, color: 0x2a5a5a, 稀有度: "传奇", era: "future" },
+    { name: "蜘蛛形态坦克", country: "德国", hp: 900, speed: 2.0, damage: 300, reload: 1600, armor: 0.65, color: 0x5a3a3a, 稀有度: "稀有", era: "future" },
+    { name: "磁悬浮坦克", country: "英国", hp: 1000, speed: 3.0, damage: 320, reload: 1500, armor: 0.6, color: 0x3a3a6a, 稀有度: "传奇", era: "future" },
+    { name: "蜂群指挥坦克", country: "以色列", hp: 800, speed: 1.8, damage: 250, reload: 1200, armor: 0.5, color: 0x6a4a2a, 稀有度: "稀有", era: "future" },
+    { name: "轨道打击坦克", country: "美国", hp: 1300, speed: 1.0, damage: 800, reload: 4000, armor: 0.9, color: 0x2a2a4a, 稀有度: "传奇", era: "future" },
+    { name: "等离子体坦克", country: "日本", hp: 1100, speed: 1.4, damage: 480, reload: 2100, armor: 0.8, color: 0x4a2a6a, 稀有度: "传奇", era: "future" },
+    { name: "重力控制坦克", country: "欧洲", hp: 1500, speed: 1.2, damage: 520, reload: 2500, armor: 0.92, color: 0x6a2a4a, 稀有度: "传奇", era: "future" },
+    { name: "天基支援坦克", country: "中国", hp: 1400, speed: 1.3, damage: 460, reload: 2200, armor: 0.9, color: 0x1a4a7a, 稀有度: "传奇", era: "future" }
+];
+
+// ===== 生成100辆属性随机的坦克变体 =====
+const TANK_VARIANTS = [];
+for (let i = 0; i < 100; i++) {
+    const base = TANK_DATABASE[i % TANK_DATABASE.length];
+    const variant = {
+        ...base,
+        id: `T-${i+1}`,
+        fullName: `${base.name} ${String.fromCharCode(65 + Math.floor(Math.random() * 26))}-${Math.floor(Math.random() * 100)}`,
+        // 属性浮动随机化，生成带有轻微属性差异的独特坦克单位
+        hp: Math.floor(base.hp * (0.85 + Math.random() * 0.3)),
+        damage: Math.floor(base.damage * (0.85 + Math.random() * 0.3)),
+        maxSpeed: base.speed * (0.9 + Math.random() * 0.2),
+        reload: Math.floor(base.reload * (0.9 + Math.random() * 0.2)),
+        armor: Math.min(1, base.armor * (0.9 + Math.random() * 0.2))
     };
+    TANK_VARIANTS.push(variant);
+}
 
-    // ==================== 游戏状态 ====================
-    let gameState = {
-        coins: 0,
-        selectedTank: 'm1a2_abrams',
-        inShop: true,
-        gameRunning: false,
-        kills: 0,
-        enemyKills: 0
-    };
 
-    // ==================== Three.js 场景 ====================
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x1a1a2e);
-    scene.fog = new THREE.Fog(0x1a1a2e, 100, 400);
+// 多弹药类型系统，不同弹药对应不同穿深和伤害倍率
+const AMMO_TYPES = [
+    { name: "穿甲弹", damageMult: 1.0, armorPen: 0.7, color: 0xffff00 },
+    { name: "高爆弹", damageMult: 1.3, armorPen: 0.2, color: 0xff6600 },
+    { name: "破甲弹", damageMult: 1.1, armorPen: 0.9, color: 0xff00ff }
+];
 
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 80, 50);
-    camera.lookAt(0, 0, 0);
+// ==========================================
+// 工具函数与数学计算库
+// ==========================================
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    document.body.appendChild(renderer.domElement);
+const Utils = {
+    rand: (min, max) => Math.random() * (max - min) + min,
+    randInt: (min, max) => Math.floor(Math.random() * (max - min + 1) + min),
+    clamp: (val, min, max) => Math.min(Math.max(val, min), max),
+    lerp: (start, end, t) => start * (1 - t) + end * t,
+    
+    // 平滑角度插值，消除炮塔转向时的卡顿抖动
+    slerpAngle: (current, target, speed) => {
+        let diff = target - current;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        return current + diff * speed;
+    },
 
-    // 光照
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
-    scene.add(ambientLight);
+    distance: (v1, v2) => v1.distanceTo(v2)
+};
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    dirLight.position.set(50, 100, 50);
-    dirLight.castShadow = true;
-    dirLight.shadow.mapSize.width = 2048;
-    dirLight.shadow.mapSize.height = 2048;
-    dirLight.shadow.camera.near = 0.5;
-    dirLight.shadow.camera.far = 500;
-    dirLight.shadow.camera.left = -150;
-    dirLight.shadow.camera.right = 150;
-    dirLight.shadow.camera.top = 150;
-    dirLight.shadow.camera.bottom = -150;
-    scene.add(dirLight);
+// ==========================================
+// 粒子特效与渲染系统
+// ==========================================
 
-    // 地面
-    const groundGeo = new THREE.PlaneGeometry(400, 400, 40, 40);
-    const groundMat = new THREE.MeshLambertMaterial({ color: 0x2d4a2d });
-    const ground = new THREE.Mesh(groundGeo, groundMat);
-    ground.rotation.x = -Math.PI / 2;
-    ground.receiveShadow = true;
-    scene.add(ground);
-
-    // 地面网格线
-    const gridHelper = new THREE.GridHelper(400, 80, 0x3a5a3a, 0x2a4a2a);
-    scene.add(gridHelper);
-
-    // 障碍物
-    const obstacles = [];
-    function createObstacle(x, z, w, h, d) {
-        const geo = new THREE.BoxGeometry(w, h, d);
-        const mat = new THREE.MeshLambertMaterial({ color: 0x555555 });
-        const mesh = new THREE.Mesh(geo, mat);
-        mesh.position.set(x, h/2, z);
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-        scene.add(mesh);
-        obstacles.push({ mesh, box: new THREE.Box3().setFromObject(mesh) });
+class ParticleSystem {
+    constructor(scene) {
+        this.scene = scene;
+        this.particles = [];
+        
+        // 共享几何体与材质，大幅降低渲染性能消耗
+        this.smokeGeo = new THREE.SphereGeometry(1, 8, 8);
+        this.smokeMat = new THREE.MeshBasicMaterial({ color: 0xaaaaaa, transparent: true, opacity: 0.6 });
+        this.sparkGeo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+        this.sparkMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+        this.fireGeo = new THREE.SphereGeometry(0.8, 8, 8);
+        this.fireMat = new THREE.MeshBasicMaterial({ color: 0xff4400, transparent: true, opacity: 0.7 });
     }
 
-    // 随机障碍物
-    for (let i = 0; i < 30; i++) {
-        const x = (Math.random() - 0.5) * 300;
-        const z = (Math.random() - 0.5) * 300;
-        const w = 4 + Math.random() * 8;
-        const h = 3 + Math.random() * 6;
-        const d = 4 + Math.random() * 8;
-        createObstacle(x, z, w, h, d);
+    emitSmoke(position, count = 5) {
+        for (let i = 0; i < count; i++) {
+            const mesh = new THREE.Mesh(this.smokeGeo, this.smokeMat.clone());
+            mesh.position.copy(position);
+            mesh.position.x += Utils.rand(-0.5, 0.5);
+            mesh.position.z += Utils.rand(-0.5, 0.5);
+            mesh.scale.setScalar(Utils.rand(0.5, 1.5));
+            
+            const velocity = new THREE.Vector3(Utils.rand(-0.1, 0.1), Utils.rand(0.1, 0.3), Utils.rand(-0.1, 0.1));
+            
+            this.scene.add(mesh);
+            this.particles.push({ mesh, velocity, life: 1.0, type: 'smoke' });
+        }
     }
 
-    // 建筑物
-    for (let i = 0; i < 10; i++) {
-        const x = (Math.random() - 0.5) * 250;
-        const z = (Math.random() - 0.5) * 250;
-        const w = 10 + Math.random() * 15;
-        const h = 8 + Math.random() * 12;
-        const d = 10 + Math.random() * 15;
-        createObstacle(x, z, w, h, d);
+    emitSparks(position, count = 8) {
+        for (let i = 0; i < count; i++) {
+            const mesh = new THREE.Mesh(this.sparkGeo, this.sparkMat);
+            mesh.position.copy(position);
+            
+            const velocity = new THREE.Vector3(Utils.rand(-0.5, 0.5), Utils.rand(0, 0.5), Utils.rand(-0.5, 0.5));
+            
+            this.scene.add(mesh);
+            this.particles.push({ mesh, velocity, life: 0.5, type: 'spark' });
+        }
     }
 
-    // ==================== 坦克类 ====================
-    class Tank {
-        constructor(type, team, x, z, isPlayer) {
-            this.type = type;
-            this.team = team; // 'player' or 'enemy'
-            this.isPlayer = isPlayer;
-            this.alive = true;
-            this.health = TANK_TYPES[type].health;
-            this.maxHealth = TANK_TYPES[type].health;
+    emitFire(position, count = 6) {
+        for (let i = 0; i < count; i++) {
+            const mesh = new THREE.Mesh(this.fireGeo, this.fireMat.clone());
+            mesh.position.copy(position);
+            mesh.position.y += Utils.rand(0, 1);
             
-            this.bodyAngle = Math.random() * Math.PI * 2;
-            this.turretAngle = this.bodyAngle;
-            this.speed = 0;
-            this.maxSpeed = TANK_TYPES[type].speed;
+            const velocity = new THREE.Vector3(Utils.rand(-0.05, 0.05), Utils.rand(0.1, 0.4), Utils.rand(-0.05, 0.05));
             
-            this.x = x;
-            this.z = z;
-            
-            this.lastShot = 0;
-            this.fireRate = TANK_TYPES[type].fireRate;
-            
-            this.targetX = x;
-            this.targetZ = z;
-            
-            this.mesh = this.createMesh();
-            scene.add(this.mesh);
-            
-            // 血条
-            this.hpBar = this.createHPBar();
-            scene.add(this.hpBar);
+            this.scene.add(mesh);
+            this.particles.push({ mesh, velocity, life: 0.8, type: 'fire' });
         }
-        
-        createMesh() {
-            const group = new THREE.Group();
-            const t = TANK_TYPES[this.type];
-            
-            // 履带
-            const trackGeo = new THREE.BoxGeometry(4, 1.2, 7);
-            const trackMat = new THREE.MeshLambertMaterial({ color: 0x222222 });
-            const leftTrack = new THREE.Mesh(trackGeo, trackMat);
-            leftTrack.position.set(-2, 0.6, 0);
-            leftTrack.castShadow = true;
-            group.add(leftTrack);
-            
-            const rightTrack = new THREE.Mesh(trackGeo, trackMat);
-            rightTrack.position.set(2, 0.6, 0);
-            rightTrack.castShadow = true;
-            group.add(rightTrack);
-            
-            // 车身
-            const bodyGeo = new THREE.BoxGeometry(4, 1.5, 6);
-            const bodyMat = new THREE.MeshLambertMaterial({ color: t.bodyColor });
-            const body = new THREE.Mesh(bodyGeo, bodyMat);
-            body.position.y = 1.8;
-            body.castShadow = true;
-            group.add(body);
-            
-            // 炮塔
-            this.turretGroup = new THREE.Group();
-            const turretGeo = new THREE.CylinderGeometry(1.8, 2.2, 1.5, 8);
-            const turretMat = new THREE.MeshLambertMaterial({ color: t.turretColor });
-            const turret = new THREE.Mesh(turretGeo, turretMat);
-            turret.position.y = 2.8;
-            turret.castShadow = true;
-            this.turretGroup.add(turret);
-            
-            // 炮管
-            const barrelGeo = new THREE.CylinderGeometry(0.3, 0.3, 5, 8);
-            const barrelMat = new THREE.MeshLambertMaterial({ color: 0x333333 });
-            const barrel = new THREE.Mesh(barrelGeo, barrelMat);
-            barrel.rotation.x = Math.PI / 2;
-            barrel.position.z = 3;
-            barrel.castShadow = true;
-            this.turretGroup.add(barrel);
-            
-            group.add(this.turretGroup);
-            
-            group.position.set(this.x, 0, this.z);
-            group.rotation.y = this.bodyAngle;
-            
-            return group;
-        }
-        
-        createHPBar() {
-            const canvas = document.createElement('canvas');
-            canvas.width = 64; canvas.height = 8;
-            const tex = new THREE.CanvasTexture(canvas);
-            const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
-            const sprite = new THREE.Sprite(mat);
-            sprite.scale.set(4, 0.5, 1);
-            sprite.position.y = 5;
-            return sprite;
-        }
-        
-        updateHPBar() {
-            const canvas = this.hpBar.material.map.image;
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, 64, 8);
-            const pct = this.health / this.maxHealth;
-            ctx.fillStyle = pct > 0.5 ? '#0f0' : pct > 0.25 ? '#ff0' : '#f00';
-            ctx.fillRect(0, 0, 64 * pct, 8);
-        }
-        
-        update(dt, keys, mouseWorldPos) {
-            if (!this.alive) return;
-            
-            this.updateHPBar();
-            
-            if (this.isPlayer) {
-                this.handlePlayerInput(dt, keys, mouseWorldPos);
-            } else {
-                this.handleAI(dt);
+    }
+
+    update(dt) {
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const p = this.particles[i];
+            p.life -= dt / 1000; // dt以毫秒为单位转换为秒级生命周期
+
+            if (p.life <= 0) {
+                this.scene.remove(p.mesh);
+                this.particles.splice(i, 1);
+                continue;
             }
+
+            p.mesh.position.add(p.velocity);
             
-            // 移动
-            this.x += Math.sin(this.bodyAngle) * this.speed * dt;
-            this.z += Math.cos(this.bodyAngle) * this.speed * dt;
-            
-            // 边界
-            this.x = Math.max(-190, Math.min(190, this.x));
-            this.z = Math.max(-190, Math.min(190, this.z));
-            
-            // 障碍物碰撞
-            this.checkObstacleCollision();
-            
-            this.mesh.position.set(this.x, 0, this.z);
-            this.mesh.rotation.y = this.bodyAngle;
-            
-            // 炮塔朝向鼠标
-            if (this.isPlayer && mouseWorldPos) {
-                const dx = mouseWorldPos.x - this.x;
-                const dz = mouseWorldPos.z - this.z;
-                this.turretAngle = Math.atan2(dx, dz);
-            }
-            this.turretGroup.rotation.y = this.turretAngle - this.bodyAngle;
-            
-            this.hpBar.position.set(this.x, 0, this.z);
-            this.hpBar.lookAt(camera.position);
-        }
-        
-        handlePlayerInput(dt, keys, mouseWorldPos) {
-            const t = TANK_TYPES[this.type];
-            let moveX = 0, moveZ = 0;
-            
-            if (keys['w'] || keys['W']) moveZ -= 1;
-            if (keys['s'] || keys['S']) moveZ += 1;
-            if (keys['a'] || keys['A']) moveX -= 1;
-            if (keys['d'] || keys['D']) moveX += 1;
-            
-            if (moveX !== 0 || moveZ !== 0) {
-                const len = Math.sqrt(moveX*moveX + moveZ*moveZ);
-                moveX /= len; moveZ /= len;
-                this.speed = this.maxSpeed;
-                this.bodyAngle = Math.atan2(moveX, moveZ);
-            } else {
-                this.speed *= 0.9;
-                if (this.speed < 0.1) this.speed = 0;
-            }
-            
-            // 射击
-            if (keys[' '] && Date.now() - this.lastShot > this.fireRate * 1000) {
-                this.shoot();
-                this.lastShot = Date.now();
+            if (p.type === 'smoke') {
+                p.mesh.rotation.x += dt * 0.001;
+                p.mesh.rotation.y += dt * 0.001;
+                p.mesh.material.opacity = p.life * 0.4;
+                p.mesh.scale.multiplyScalar(1.01); // 烟雾随时间向外扩散
+            } else if (p.type === 'spark') {
+                p.mesh.material.opacity = p.life * 2;
+                p.velocity.y -= 0.02; // 火花模拟重力下落效果
+            } else if (p.type === 'fire') {
+                p.mesh.material.opacity = p.life * 0.8;
+                p.mesh.scale.multiplyScalar(1.03); // 火焰随时间膨胀
             }
         }
+    }
+}
+
+// ==========================================
+// 炮弹实体类，处理飞行碰撞逻辑
+// ==========================================
+
+class Bullet {
+    constructor(position, quaternion, owner, ammoType) {
+        this.owner = owner;
+        this.speed = 5.5;
+        this.ammoType = ammoType;
+        this.damage = owner.stats.damage * ammoType.damageMult;
+        this.armorPen = ammoType.armorPen;
+        this.active = true;
+        this.lifeTime = 3000; // 炮弹最大存活时间3秒
+
+        const geometry = new THREE.SphereGeometry(0.15, 8, 8);
+        const material = new THREE.MeshBasicMaterial({ color: ammoType.color });
+        this.mesh = new THREE.Mesh(geometry, material);
+        this.mesh.position.copy(position);
         
-        handleAI(dt) {
-            const t = TANK_TYPES[this.type];
+        // 炮弹挂载点光源，实现发光尾迹效果
+        this.light = new THREE.PointLight(ammoType.color, 1.5, 12);
+        this.mesh.add(this.light);
+
+        this.direction = new THREE.Vector3(0, 0, 1);
+        this.direction.applyQuaternion(quaternion);
+
+        scene.add(this.mesh);
+    }
+
+    update(dt, tanks) {
+        if (!this.active) return;
+
+        this.lifeTime -= dt;
+        if (this.lifeTime <= 0) this.destroy();
+
+        // 按飞行方向移动炮弹
+        const moveStep = this.direction.clone().multiplyScalar(this.speed);
+        this.mesh.position.add(moveStep);
+
+        // 坦克碰撞检测
+        for (const tank of tanks) {
+            if (tank === this.owner || tank.isDead) continue;
             
-            // 找最近的玩家坦克
-            let nearestPlayer = null;
-            let nearestDist = Infinity;
-            playerTanks.forEach(pt => {
-                if (!pt.alive) return;
-                const d = Math.hypot(pt.x - this.x, pt.z - this.z);
-                if (d < nearestDist) { nearestDist = d; nearestPlayer = pt; }
-            });
-            
-            if (!nearestPlayer) return;
-            
-            // 转向玩家
-            const angleToPlayer = Math.atan2(nearestPlayer.x - this.x, nearestPlayer.z - this.z);
-            let angleDiff = angleToPlayer - this.bodyAngle;
-            while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-            while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-            
-            this.bodyAngle += Math.sign(angleDiff) * Math.min(Math.abs(angleDiff), 2 * dt);
-            
-            // 移动
-            if (nearestDist > 40) {
-                this.speed = this.maxSpeed * 0.8;
-            } else if (nearestDist < 20) {
-                this.speed = -this.maxSpeed * 0.3;
-            } else {
-                this.speed = this.maxSpeed * 0.4;
-            }
-            
-            // 炮塔跟踪
-            this.turretAngle = angleToPlayer;
-            
-            // 射击
-            if (nearestDist < 100 && Math.abs(angleDiff) < 0.3) {
-                if (Date.now() - this.lastShot > this.fireRate * 1000) {
-                    this.shoot();
-                    this.lastShot = Date.now();
-                }
-            }
-        }
-        
-        checkObstacleCollision() {
-            const tankBox = new THREE.Box3(
-                new THREE.Vector3(this.x - 2.5, 0, this.z - 3.5),
-                new THREE.Vector3(this.x + 2.5, 3, this.z + 3.5)
-            );
-            
-            for (const obs of obstacles) {
-                if (tankBox.intersectsBox(obs.box)) {
-                    // 推回
-                    this.x -= Math.sin(this.bodyAngle) * this.speed * 0.5;
-                    this.z -= Math.cos(this.bodyAngle) * this.speed * 0.5;
-                    break;
-                }
+            const dist = this.mesh.position.distanceTo(tank.mesh.position);
+            // 碰撞判定半径2.5，适配坦克模型尺寸
+            if (dist < 2.5) {
+                this.hit(tank);
+                break;
             }
         }
+    }
+
+    hit(tank) {
+        this.active = false;
+        this.destroy();
         
-        shoot() {
-            const t = TANK_TYPES[this.type];
-            const barrelEnd = new THREE.Vector3(0, 0, 5);
-            barrelEnd.applyAxisAngle(new THREE.Vector3(0,1,0), this.turretAngle - this.bodyAngle);
-            barrelEnd.x += this.x;
-            barrelEnd.z += this.z;
-            
-            const bullet = new Bullet(
-                barrelEnd.x, barrelEnd.z,
-                this.turretAngle,
-                t.damage,
-                this.team,
-                this
-            );
-            bullets.push(bullet);
+        // 基于装甲和穿深计算最终实际伤害
+        const actualDamage = this.damage * (1 - tank.stats.armor * (1 - this.armorPen));
+        
+        tank.takeDamage(actualDamage);
+        game.effects.emitSparks(this.mesh.position, 12);
+        game.effects.emitFire(this.mesh.position, 4);
+    }
+
+    destroy() {
+        scene.remove(this.mesh);
+    }
+}
+
+// ==========================================
+// 坦克实体类，处理玩家控制与AI逻辑
+// ==========================================
+
+class Tank {
+    constructor(variantData, position, team, isPlayer = false) {
+        this.stats = variantData;
+        this.team = team;
+        this.isPlayer = isPlayer;
+        this.isDead = false;
+        this.currentHp = this.stats.hp;
+        
+        this.velocity = 0;
+        this.rotationVelocity = 0;
+        this.lastShotTime = 0;
+        this.currentAmmo = 0; // 默认弹药为穿甲弹
+        this.isSprinting = false;
+        
+        // AI状态机
+        this.aiState = 'patrol';
+        this.targetTank = null;
+        this.aiChangeStateTimer = 0;
+
+        this.mesh = this.createModel();
+        this.mesh.position.copy(position);
+        scene.add(this.mesh);
+
+        this.createLabel();
+    }
+
+    createModel() {
+        const group = new THREE.Group();
+
+        // 1. 坦克车体底盘
+        const chassisGeo = new THREE.BoxGeometry(2.2, 1, 4.5);
+        const chassisMat = new THREE.MeshStandardMaterial({ 
+            color: this.stats.color, 
+            roughness: 0.7,
+            metalness: 0.3
+        });
+        const chassis = new THREE.Mesh(chassisGeo, chassisMat);
+        chassis.position.y = 0.8;
+        chassis.castShadow = true;
+        chassis.receiveShadow = true;
+        group.add(chassis);
+
+        // 左右履带模型
+        const trackGeo = new THREE.BoxGeometry(0.4, 0.8, 4.6);
+        const trackMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+        const leftTrack = new THREE.Mesh(trackGeo, trackMat);
+        leftTrack.position.set(-1.2, 0.6, 0);
+        const rightTrack = new THREE.Mesh(trackGeo, trackMat);
+        rightTrack.position.set(1.2, 0.6, 0);
+        group.add(leftTrack);
+        group.add(rightTrack);
+
+        // 2. 炮塔组，可绕Y轴独立旋转
+        this.turretGroup = new THREE.Group();
+        this.turretGroup.position.set(0, 1.3, 0);
+        group.add(this.turretGroup);
+
+        const turretGeo = new THREE.BoxGeometry(1.6, 0.8, 2.2);
+        const turretMat = new THREE.MeshStandardMaterial({ color: this.stats.color });
+        const turretHead = new THREE.Mesh(turretGeo, turretMat);
+        turretHead.position.y = 0.4;
+        turretHead.castShadow = true;
+        this.turretGroup.add(turretHead);
+
+        // 3. 主炮模型，挂载在炮塔上
+        const barrelLength = 3.5;
+        const barrelGeo = new THREE.CylinderGeometry(0.12, 0.15, barrelLength, 12);
+        const barrelMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+        this.barrel = new THREE.Mesh(barrelGeo, barrelMat);
+        
+        // 将圆柱体旋转为车头正前方向(Z轴正方向)
+        this.barrel.rotation.x = Math.PI / 2;
+        this.barrel.position.set(0, 0.4, 1.5); 
+        this.barrel.castShadow = true;
+        
+        // 炮口制退器细节模型
+        const muzzleGeo = new THREE.BoxGeometry(0.25, 0.25, 0.4);
+        const muzzle = new THREE.Mesh(muzzleGeo, barrelMat);
+        muzzle.position.set(0, 0, barrelLength/2);
+        this.barrel.add(muzzle);
+
+        this.turretGroup.add(this.barrel);
+
+        return group;
+    }
+
+    createLabel() {
+        const div = document.createElement('div');
+        div.className = `tank-label ${this.team === 'enemy' ? 'enemy' : (this.isPlayer ? 'player' : 'ally')} ${this.stats.rarity}`;
+        
+        const nameDiv = document.createElement('div');
+        nameDiv.className = 'tank-name';
+        nameDiv.textContent = this.isPlayer ? "玩家" : this.stats.name;
+        
+        const hpContainer = document.createElement('div');
+        hpContainer.className = 'hp-bar-container';
+        this.hpFill = document.createElement('div');
+        this.hpFill.className = 'hp-bar-fill';
+        hpContainer.appendChild(this.hpFill);
+
+        div.appendChild(nameDiv);
+        div.appendChild(hpContainer);
+        document.getElementById('ui-layer').appendChild(div);
+        
+        this.labelElement = div;
+    }
+
+    updateLabel(camera) {
+        if (this.isDead) {
+            this.labelElement.style.display = 'none';
+            return;
         }
+
+        // 将3D世界坐标投影到2D屏幕坐标，实现头顶标识跟随
+        const pos = this.mesh.position.clone();
+        pos.y += 3.5; // 标识向上偏移，悬浮在坦克头顶
+        pos.project(camera);
+
+        const x = (pos.x * .5 + .5) * window.innerWidth;
+        const y = (-(pos.y * .5) + .5) * window.innerHeight;
+
+        // 摄像机背面的坦克自动隐藏标识，避免穿屏错误
+        if (pos.z > 1) {
+            this.labelElement.style.display = 'none';
+        } else {
+            this.labelElement.style.display = 'flex';
+            this.labelElement.style.left = `${x}px`;
+            this.labelElement.style.top = `${y}px`;
+        }
+    }
+
+    takeDamage(amount) {
+        this.currentHp -= amount;
+        const pct = Math.max(0, (this.currentHp / this.stats.hp) * 100);
+        this.hpFill.style.width = `${pct}%`;
+
+        if (this.currentHp <= 0) {
+            this.die();
+        }
+    }
+
+    die() {
+        this.isDead = true;
+        this.mesh.visible = false;
+        this.labelElement.remove();
+        game.effects.emitSmoke(this.mesh.position, 25);
+        game.effects.emitSparks(this.mesh.position, 40);
+        game.effects.emitFire(this.mesh.position, 10);
         
-        takeDamage(dmg) {
-            this.health -= dmg;
-            this.updateHPBar();
-            if (this.health <= 0) {
-                this.alive = false;
-                this.mesh.visible = false;
-                this.hpBar.visible = false;
+        // 爆炸闪光效果
+        const explosionLight = new THREE.PointLight(0xff5500, 3, 30);
+        explosionLight.position.copy(this.mesh.position);
+        explosionLight.position.y += 3;
+        scene.add(explosionLight);
+        setTimeout(() => scene.remove(explosionLight), 300);
+
+        if (this.isPlayer) {
+            game.gameOver(false);
+        } else {
+            game.onTankDestroyed(this);
+        }
+    }
+
+    fire() {
+        const now = Date.now();
+        const currentAmmo = AMMO_TYPES[this.currentAmmo];
+        if (now - this.lastShotTime < this.stats.reload) return false;
+
+        this.lastShotTime = now;
+
+        // 计算炮口在世界坐标系中的实际位置
+        const muzzleLocalPos = new THREE.Vector3(0, 0.4, 1.5 + barrelLength/2);
+        muzzleLocalPos.applyMatrix4(this.turretGroup.matrixWorld);
+
+        // 获取炮塔当前全局旋转四元数
+        const turretQuaternion = new THREE.Quaternion();
+        this.turretGroup.getWorldQuaternion(turretQuaternion);
+
+        // 生成新炮弹实体
+        game.bullets.push(new Bullet(muzzleLocalPos, turretQuaternion, this, currentAmmo));
+
+        // 开炮烟雾特效
+        game.effects.emitSmoke(muzzleLocalPos, 4);
+        
+        // 模拟后坐力动画
+        this.barrel.position.z -= 0.25;
+        setTimeout(() => {
+            if(!this.isDead) this.barrel.position.z += 0.25;
+        }, 120);
+
+        return true;
+    }
+
+    switchAmmo() {
+        this.currentAmmo = (this.currentAmmo + 1) % AMMO_TYPES.length;
+        const currentAmmo = AMMO_TYPES[this.currentAmmo];
+        document.getElementById('ammo-type-display').textContent = `弹药：${currentAmmo.name}`;
+    }
+
+    update(dt, allTanks, playerInput) {
+        if (this.isDead) return;
+
+        if (this.isPlayer) {
+            this.handlePlayerControl(dt, playerInput);
+        } else {
+            this.handleAI(dt, allTanks);
+        }
+
+        // 地图边界锁定，防止坦克驶出战斗区域
+        const limit = CONFIG.mapSize / 2;
+        this.mesh.position.x = Utils.clamp(this.mesh.position.x, -limit, limit);
+        this.mesh.position.z = Utils.clamp(this.mesh.position.z, -limit, limit);
+    }
+
+    handlePlayerControl(dt, input) {
+        // W/S 控制坦克前进后退，支持Shift冲刺加速
+        const targetSpeed = input.sprint ? this.stats.maxSpeed * 1.8 : (input.forward ? this.stats.maxSpeed : (input.backward ? -this.stats.maxSpeed * 0.5 : 0));
+        this.velocity = Utils.lerp(this.velocity, targetSpeed, 0.1);
+        this.mesh.translateZ(this.velocity);
+
+        // A/D 控制车体左右转向
+        if (input.left) this.mesh.rotation.y += 0.022;
+        if (input.right) this.mesh.rotation.y -= 0.022;
+
+        // 鼠标瞄准逻辑，通过射线投射地面获取瞄准点
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(input.mousePos, camera);
+        const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+        const intersectPos = new THREE.Vector3();
+        raycaster.ray.intersectPlane(groundPlane, intersectPos);
+
+        if (intersectPos) {
+            const dx = intersectPos.x - this.mesh.position.x;
+            const dz = intersectPos.z - this.mesh.position.z;
+            const targetAngle = Math.atan2(dx, dz);
+            
+            const bodyRotation = this.mesh.rotation.y;
+            let desiredLocalTurretAngle = targetAngle - bodyRotation;
+            
+            // 角度归一化到[-π, π]区间，避免转向绕远
+            while (desiredLocalTurretAngle > Math.PI) desiredLocalTurretAngle -= Math.PI * 2;
+            while (desiredLocalTurretAngle < -Math.PI) desiredLocalTurretAngle += Math.PI * 2;
+
+            this.turretGroup.rotation.y = Utils.slerpAngle(this.turretGroup.rotation.y, desiredLocalTurretAngle, 0.15);
+        }
+
+        // 玩家开火判定
+        if (input.firing) {
+            if (this.fire()) {
+                game.updateReloadUI(this.stats.reload);
+            }
+        }
+
+        // 切换弹药判定
+        if (input.switchAmmo) {
+            this.switchAmmo();
+            input.switchAmmo = false;
+        }
+
+        this.isSprinting = input.sprint;
+    }
+
+    handleAI(dt, allTanks) {
+        // 自动搜索最近的敌方单位作为攻击目标
+        if (!this.targetTank || this.targetTank.isDead) {
+            let minDist = Infinity;
+            let closestEnemy = null;
+            
+            for (const other of allTanks) {
+                if (other === this || other.isDead) continue;
+                const isHostile = (this.team === 'ally' && other.team !== 'ally') || 
+                                (this.team === 'enemy' && other.team === 'ally') ||
+                                (this.team === 'enemy' && other.isPlayer);
                 
-                if (this.isPlayer) {
-                    gameOver('💀 你被击毁了！');
-                } else {
-                    gameState.kills++;
-                    document.getElementById('kills').textContent = gameState.kills;
-                    addKillFeed(`击毁了 ${TANK_TYPES[this.type].name}`);
-                    if (gameState.kills >= 5) {
-                        gameOver('🏆 胜利！你消灭了所有敌方坦克！');
-                        gameState.coins += 500;
-                        document.getElementById('coins').textContent = gameState.coins;
+                if (isHostile) {
+                    const dist = this.mesh.position.distanceTo(other.mesh.position);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        closestEnemy = other;
                     }
                 }
             }
+            this.targetTank = closestEnemy;
         }
-    }
 
-    // ==================== 子弹类 ====================
-    class Bullet {
-        constructor(x, z, angle, damage, team, owner) {
-            this.x = x;
-            this.z = z;
-            this.angle = angle;
-            this.damage = damage;
-            this.team = team;
-            this.owner = owner;
-            this.speed = 60;
-            this.alive = true;
-            this.life = 3;
-            
-            const geo = new THREE.SphereGeometry(0.3, 8, 8);
-            const mat = new THREE.MeshBasicMaterial({ color: team === 'player' ? 0x00ff00 : 0xff4444 });
-            this.mesh = new THREE.Mesh(geo, mat);
-            this.mesh.position.set(x, 1, z);
-            scene.add(this.mesh);
-            
-            // 尾焰
-            const flameGeo = new THREE.SphereGeometry(0.5, 6, 6);
-            const flameMat = new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0.6 });
-            this.flame = new THREE.Mesh(flameGeo, flameMat);
-            this.flame.position.copy(this.mesh.position);
-            scene.add(this.flame);
-        }
-        
-        update(dt) {
-            if (!this.alive) return;
-            
-            this.life -= dt;
-            if (this.life <= 0) { this.destroy(); return; }
-            
-            this.x += Math.sin(this.angle) * this.speed * dt;
-            this.z += Math.cos(this.angle) * this.speed * dt;
-            
-            this.mesh.position.set(this.x, 1, this.z);
-            this.flame.position.set(this.x, 1, this.z);
-            
-            // 边界
-            if (Math.abs(this.x) > 200 || Math.abs(this.z) > 200) {
-                this.destroy(); return;
-            }
-            
-            // 碰撞检测
-            this.checkHit();
-        }
-        
-        checkHit() {
-            const targets = this.team === 'player' ? enemyTanks : playerTanks;
-            for (const tank of targets) {
-                if (!tank.alive) continue;
-                const d = Math.hypot(tank.x - this.x, tank.z - this.z);
-                if (d < 4) {
-                    tank.takeDamage(this.damage);
-                    this.destroy();
-                    // 爆炸效果
-                    createExplosion(this.x, 1, this.z);
-                    return;
-                }
-            }
-            
-            // 障碍物
-            for (const obs of obstacles) {
-                if (obs.box.containsPoint(new THREE.Vector3(this.x, 1, this.z))) {
-                    this.destroy();
-                    createExplosion(this.x, 1, this.z);
-                    return;
-                }
-            }
-        }
-        
-        destroy() {
-            this.alive = false;
-            scene.remove(this.mesh);
-            scene.remove(this.flame);
-        }
-    }
+        // AI状态机逻辑
+        if (this.targetTank) {
+            const distToTarget = this.mesh.position.distanceTo(this.targetTank.mesh.position);
+            const angleToTarget = Math.atan2(
+                this.targetTank.mesh.position.x - this.mesh.position.x,
+                this.targetTank.mesh.position.z - this.mesh.position.z
+            );
 
-    // ==================== 爆炸效果 ====================
-    function createExplosion(x, y, z) {
-        const particles = [];
-        for (let i = 0; i < 20; i++) {
-            const geo = new THREE.SphereGeometry(0.2 + Math.random()*0.3, 6, 6);
-            const mat = new THREE.MeshBasicMaterial({ 
-                color: new THREE.Color().setHSL(0.05 + Math.random()*0.1, 1, 0.5),
-                transparent: true 
-            });
-            const p = new THREE.Mesh(geo, mat);
-            p.position.set(x, y, z);
-            p.userData = {
-                vx: (Math.random()-0.5)*20,
-                vy: Math.random()*15,
-                vz: (Math.random()-0.5)*20,
-                life: 1
-            };
-            scene.add(p);
-            particles.push(p);
-        }
-        
-        function animateParticles() {
-            let allDead = true;
-            particles.forEach(p => {
-                if (p.userData.life > 0) {
-                    allDead = false;
-                    p.userData.life -= 0.03;
-                    p.position.x += p.userData.vx * 0.016;
-                    p.position.y += p.userData.vy * 0.016;
-                    p.position.z += p.userData.vz * 0.016;
-                    p.userData.vy -= 9.8 * 0.016;
-                    p.material.opacity = p.userData.life;
-                }
-            });
-            if (!allDead) requestAnimationFrame(animateParticles);
-            else particles.forEach(p => scene.remove(p));
-        }
-        animateParticles();
-    }
-
-    // ==================== 游戏变量 ====================
-    let playerTanks = [];
-    let enemyTanks = [];
-    let bullets = [];
-    let keys = {};
-    let mouseWorldPos = null;
-    
-    // 鼠标位置追踪
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
-    
-    window.addEventListener('mousemove', (e) => {
-        mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-        
-        raycaster.setFromCamera(mouse, camera);
-        const plane = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
-        const intersect = new THREE.Vector3();
-        raycaster.ray.intersectPlane(plane, intersect);
-        if (intersect) {
-            mouseWorldPos = intersect;
-            document.getElementById('crosshair').style.left = e.clientX + 'px';
-            document.getElementById('crosshair').style.top = e.clientY + 'px';
-        }
-    });
-
-    // ==================== 商店 ====================
-    function showShop() {
-        const shop = document.getElementById('shop');
-        shop.style.display = 'block';
-        gameState.inShop = true;
-        gameState.gameRunning = false;
-        
-        document.getElementById('shopCoins').textContent = gameState.coins;
-        
-        const list = document.getElementById('tankList');
-        list.innerHTML = '';
-        
-        Object.entries(TANK_TYPES).forEach(([key, tank]) => {
-            const card = document.createElement('div');
-            card.className = 'tank-card' + (key === gameState.selectedTank ? ' selected' : '');
-            card.innerHTML = `
-                <h3>${tank.name}</h3>
-                <p>${tank.country}</p>
-                <p>⚡速度:${tank.speed} 🛡️装甲:${tank.armor}</p>
-                <p>💥伤害:${tank.damage} ❤️血量:${tank.health}</p>
-                <p>🔄射速:${tank.fireRate}s 🔧炮塔:${tank.turretSpeed}</p>
-                <p style="color:#ff0">${tank.price === 0 ? '免费' : '🪙 '+tank.price}</p>
-                <p style="font-size:10px;color:#aaa">${tank.desc}</p>
-            `;
-            card.onclick = () => {
-                document.querySelectorAll('.tank-card').forEach(c => c.classList.remove('selected'));
-                card.classList.add('selected');
-                gameState.selectedTank = key;
-            };
-            list.appendChild(card);
-        });
-        
-        document.getElementById('buyBtn').onclick = () => {
-            const tank = TANK_TYPES[gameState.selectedTank];
-            if (gameState.coins >= tank.price) {
-                gameState.coins -= tank.price;
-                shop.style.display = 'none';
-                startGame();
+            // 车体自动转向目标
+            let bodyAngleDiff = angleToTarget - this.mesh.rotation.y;
+            while (bodyAngleDiff > Math.PI) bodyAngleDiff -= Math.PI * 2;
+            while (bodyAngleDiff < -Math.PI) bodyAngleDiff += Math.PI * 2;
+            
+            if (Math.abs(bodyAngleDiff) > 0.1) {
+                this.mesh.rotation.y += Math.sign(bodyAngleDiff) * 0.015;
             } else {
-                alert('金币不足！');
+                // 距离过远前进接敌，距离过近后退拉开安全射击距离
+                if (distToTarget > 25) {
+                    this.mesh.translateZ(this.stats.maxSpeed * 0.7);
+                } else if (distToTarget < 12) {
+                    this.mesh.translateZ(-this.stats.maxSpeed * 0.35);
+                }
             }
+
+            // 炮塔自动指向目标方位
+            const localTargetAngle = angleToTarget - this.mesh.rotation.y;
+            let turretAngleDiff = localTargetAngle - this.turretGroup.rotation.y;
+            while (turretAngleDiff > Math.PI) turretAngleDiff -= Math.PI * 2;
+            while (turretAngleDiff < -Math.PI) turretAngleDiff += Math.PI * 2;
+            
+            this.turretGroup.rotation.y += turretAngleDiff * 0.05;
+
+            // 瞄准条件满足后自动开火
+            if (Math.abs(turretAngleDiff) < 0.12 && distToTarget < 45) {
+                this.fire();
+            }
+
+        } else {
+            // 无目标时自动随机巡逻
+            this.aiChangeStateTimer -= dt;
+            if (this.aiChangeStateTimer <= 0) {
+                this.patrolAngle = Math.random() * Math.PI * 2;
+                this.aiChangeStateTimer = 2500 + Math.random() * 3500;
+            }
+            
+            let diff = this.patrolAngle - this.mesh.rotation.y;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            
+            this.mesh.rotation.y += diff * 0.02;
+            this.mesh.translateZ(this.stats.maxSpeed * 0.35);
+        }
+    }
+}
+
+// ==========================================
+// 主游戏控制逻辑
+// ==========================================
+
+class Game {
+    constructor() {
+        this.tanks = [];
+        this.bullets = [];
+        this.player = null;
+        this.score = 0;
+        this.killCount = 0;
+        this.isRunning = false;
+        this.cameraMode = 0; // 0:追尾视角 1:自由视角 2:炮塔跟随视角
+        
+        this.playerInput = {
+            forward: false, backward: false, left: false, right: false, sprint: false,
+            firing: false, switchAmmo: false,
+            mousePos: new THREE.Vector2()
         };
+
+        this.initScene();
+        this.initEvents();
+        this.minimapCanvas = document.getElementById('minimap-canvas');
+        this.minimapCtx = this.minimapCanvas.getContext('2d');
     }
 
-    // ==================== 开始游戏 ====================
-    function startGame() {
-        gameState.gameRunning = true;
-        gameState.kills = 0;
-        document.getElementById('kills').textContent = '0';
-        document.getElementById('tankName').textContent = TANK_TYPES[gameState.selectedTank].name;
-        
-        // 清除旧坦克
-        playerTanks.forEach(t => scene.remove(t.mesh));
-        enemyTanks.forEach(t => scene.remove(t.mesh));
-        playerTanks = [];
-        enemyTanks = [];
-        bullets.forEach(b => b.destroy());
-        bullets = [];
-        
-        // 玩家坦克
-        const px = (Math.random()-0.5) * 100;
-        const pz = 80 + Math.random() * 40;
-        playerTanks.push(new Tank(gameState.selectedTank, 'player', px, pz, true));
-        
-        // 敌方5辆坦克
-        const enemyTypes = Object.keys(TANK_TYPES).filter(k => k !== gameState.selectedTank);
-        for (let i = 0; i < 5; i++) {
-            const ex = (Math.random()-0.5) * 150;
-            const ez = -60 - Math.random() * 80;
-            const et = enemyTypes[i % enemyTypes.length];
-            enemyTanks.push(new Tank(et, 'enemy', ex, ez, false));
-        }
-        
-        camera.position.set(px, 80, pz + 50);
-    }
+    initScene() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x121212);
+        scene.fog = new THREE.FogExp2(0x121212, 0.007);
 
-    // ==================== 游戏结束 ====================
-    function gameOver(msg) {
-        gameState.gameRunning = false;
-        const el = document.getElementById('gameOver');
-        el.textContent = msg;
-        el.style.display = 'block';
-        setTimeout(() => {
-            el.style.display = 'none';
-            showShop();
-        }, 3000);
-    }
+        camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1200);
+        camera.position.set(0, 30, 40);
 
-    // 击杀信息
-    function addKillFeed(msg) {
-        const el = document.getElementById('killFeed');
-        const div = document.createElement('div');
-        div.textContent = msg;
-        el.prepend(div);
-        setTimeout(() => div.remove(), 4000);
-    }
-
-    // ==================== 小地图 ====================
-    function updateMinimap() {
-        const canvas = document.getElementById('minimapCanvas');
-        const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, 200, 200);
-        
-        ctx.fillStyle = 'rgba(0,30,0,0.8)';
-        ctx.fillRect(0, 0, 200, 200);
-        
-        const scale = 200 / 400;
-        const offset = 100;
-        
-        // 障碍物
-        ctx.fillStyle = '#444';
-        obstacles.forEach(o => {
-            const ox = o.mesh.position.x * scale + offset;
-            const oz = o.mesh.position.z * scale + offset;
-            ctx.fillRect(ox-2, oz-2, 4, 4);
-        });
-        
-        // 敌方
-        enemyTanks.forEach(t => {
-            if (!t.alive) return;
-            ctx.fillStyle = '#f00';
-            ctx.beginPath();
-            ctx.arc(t.x * scale + offset, t.z * scale + offset, 4, 0, Math.PI*2);
-            ctx.fill();
-        });
-        
-        // 玩家
-        playerTanks.forEach(t => {
-            if (!t.alive) return;
-            ctx.fillStyle = '#0f0';
-            ctx.beginPath();
-            ctx.arc(t.x * scale + offset, t.z * scale + offset, 5, 0, Math.PI*2);
-            ctx.fill();
-        });
-    }
-
-    // ==================== 主循环 ====================
-    let lastTime = performance.now();
-    
-    function gameLoop() {
-        requestAnimationFrame(gameLoop);
-        
-        const now = performance.now();
-        const dt = Math.min((now - lastTime) / 1000, 0.05);
-        lastTime = now;
-        
-        if (gameState.gameRunning) {
-            // 更新坦克
-            playerTanks.forEach(t => t.update(dt, keys, mouseWorldPos));
-            enemyTanks.forEach(t => t.update(dt, keys, null));
-            
-            // 更新子弹
-            bullets.forEach(b => b.update(dt));
-            bullets = bullets.filter(b => b.alive);
-            
-            // 相机跟随玩家
-            if (playerTanks.length > 0 && playerTanks[0].alive) {
-                const p = playerTanks[0];
-                camera.position.x += (p.x - camera.position.x) * 0.05;
-                camera.position.z += (p.z + 50 - camera.position.z) * 0.05;
-                camera.lookAt(p.x, 0, p.z);
-            }
-            
-            // 更新HUD
-            if (playerTanks[0]) {
-                document.getElementById('hp').textContent = Math.max(0, Math.round(playerTanks[0].health));
-            }
-            
-            // 小地图
-            updateMinimap();
-        }
-        
-        renderer.render(scene, camera);
-    }
-
-    // ==================== 输入 ====================
-    window.addEventListener('keydown', e => { keys[e.key] = true; });
-    window.addEventListener('keyup', e => { keys[e.key] = false; });
-    
-    window.addEventListener('resize', () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
+        renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-    });
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.getElementById('game-container').appendChild(renderer.domElement);
 
-    // ==================== 启动 ====================
-    showShop();
-    gameLoop();
-    </script>
+        const ambientLight = new THREE.AmbientLight(0x404040, 1.6);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.3);
+        dirLight.position.set(120, 180, 60);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = CONFIG.shadowMapSize;
+        dirLight.shadow.mapSize.height = CONFIG.shadowMapSize;
+        dirLight.shadow.camera.near = 0.5;
+        dirLight.shadow.camera.far = 600;
+        dirLight.shadow.camera.left = -CONFIG.mapSize/2;
+        dirLight.shadow.camera.right = CONFIG.mapSize/2;
+        dirLight.shadow.camera.top = CONFIG.mapSize/2;
+        dirLight.shadow.camera.bottom = -CONFIG.mapSize/2;
+        scene.add(dirLight);
+
+        const groundGeo = new THREE.PlaneGeometry(CONFIG.mapSize, CONFIG.mapSize);
+        const groundMat = new THREE.MeshStandardMaterial({ 
+            color: CONFIG.colors.ground,
+            roughness: 0.85,
+            metalness: 0.15
+        });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        const gridHelper = new THREE.GridHelper(CONFIG.mapSize, 60, CONFIG.colors.grid, 0x222222);
+        scene.add(gridHelper);
+
+        // 随机生成战场障碍物
+        const obstacleGeo = new THREE.BoxGeometry(5, 5, 5);
+        const obstacleMat = new THREE.MeshStandardMaterial({ color: 0x3a3a3a });
+        for(let i=0; i<50; i++) {
+            const obstacle = new THREE.Mesh(obstacleGeo, obstacleMat);
+            obstacle.position.set(
+                Utils.rand(-CONFIG.mapSize/2 + 10, CONFIG.mapSize/2 - 10),
+                2.5,
+                Utils.rand(-CONFIG.mapSize/2 + 10, CONFIG.mapSize/2 - 10)
+            );
+            obstacle.castShadow = true;
+            obstacle.receiveShadow = true;
+            scene.add(obstacle);
+        }
+
+        this.effects = new ParticleSystem(scene);
+    }
+
+    initEvents() {
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        document.addEventListener('keydown', (e) => {
+            switch(e.code) {
+                case 'KeyW': this.playerInput.forward = true; break;
+                case 'KeyS': this.playerInput.backward = true; break;
+                case 'KeyA': this.playerInput.left = true; break;
+                case 'KeyD': this.playerInput.right = true; break;
+                case 'ShiftLeft': this.playerInput.sprint = true; break;
+                case 'Digit1': this.player.currentAmmo = 0; document.getElementById('ammo-type-display').textContent = '弹药：穿甲弹'; break;
+                case 'Digit2': this.player.currentAmmo = 1; document.getElementById('ammo-type-display').textContent = '弹药：高爆弹'; break;
+                case 'Digit3': this.player.currentAmmo = 2; document.getElementById('ammo-type-display').textContent = '弹药：破甲弹'; break;
+                case 'KeyC': this.cameraMode = (this.cameraMode + 1) % 3; break;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            switch(e.code) {
+                case 'KeyW': this.playerInput.forward = false; break;
+                case 'KeyS': this.playerInput.backward = false; break;
+                case 'KeyA': this.playerInput.left = false; break;
+                case 'KeyD': this.playerInput.right = false; break;
+                case 'ShiftLeft': this.playerInput.sprint = false; break;
+            }
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            this.playerInput.mousePos.x = (e.clientX / window.innerWidth) * 2 - 1;
+            this.playerInput.mousePos.y = -(e.clientY / window.innerHeight) * 2 + 1;
+        });
+
+        document.addEventListener('mousedown', () => this.playerInput.firing = true);
+        document.addEventListener('mouseup', () => this.playerInput.firing = false);
+
+        document.getElementById('start-btn').addEventListener('click', () => {
+            document.getElementById('start-screen').style.display = 'none';
+            document.body.requestPointerLock();
+            this.startGame();
+        });
+    }
+
+    startGame() {
+        this.isRunning = true;
+        this.spawnAllTanks();
+        this.lastFrameTime = Date.now();
+        this.gameLoop();
+    }
+
+    spawnAllTanks() {
+        // 生成玩家控制的默认99A式坦克
+        const playerTankData = TANK_DATABASE[2];
+        this.player = new Tank(playerTankData, new THREE.Vector3(0, 0, 0), 'player', true);
+        this.tanks.push(this.player);
+
+        // 生成29辆友军坦克
+        for (let i = 0; i < 29; i++) {
+            const spawnPos = new THREE.Vector3(Utils.rand(-80, 80), 0, Utils.rand(30, 120));
+            const randomVariant = TANK_VARIANTS[Utils.randInt(0, 59)];
+            this.tanks.push(new Tank(randomVariant, spawnPos, 'ally'));
+        }
+
+        // 生成30辆敌方坦克
+        for (let i = 0; i < 30; i++) {
+            const spawnPos = new THREE.Vector3(Utils.rand(-150, 150), 0, Utils.rand(-200, -40));
+            const randomVariant = TANK_VARIANTS[Utils.randInt(0, 59)];
+            this.tanks.push(new Tank(randomVariant, spawnPos, 'enemy'));
+        }
+    }
+
+    onTankDestroyed(tank) {
+        if (tank.team === 'enemy') {
+            this.score += 100;
+            this.killCount += 1;
+            document.getElementById('score-val').innerText = this.score;
+            document.getElementById('kill-count').innerText = this.killCount;
+        }
+        
+        const enemiesLeft = this.tanks.filter(t => t.team === 'enemy' && !t.isDead).length;
+        document.getElementById('enemy-count').innerText = enemiesLeft;
+        
+        const alliesLeft = this.tanks.filter(t => (t.team === 'ally' || t.isPlayer) && !t.isDead).length;
+        document.getElementById('ally-count').innerText = alliesLeft;
+
+        // 胜利判定：全歼所有敌方单位
+        if (enemiesLeft === 0) {
+            this.gameOver(true);
+        }
+    }
+
+    gameOver(win) {
+        this.isRunning = false;
+        const screen = document.getElementById('start-screen');
+        const h1 = screen.querySelector('h1');
+        const p = screen.querySelector('p');
+        const btn = screen.querySelector('button');
+        
+        screen.style.display = 'flex';
+        h1.innerText = win ? "任务完成！全歼敌军！" : "任务失败，你的坦克已被击毁";
+        h1.style.color = win ? "#00ffcc" : "#ff3333";
+        p.innerText = `最终得分: ${this.score} | 总击杀: ${this.killCount}`;
+        btn.innerText = "重新开始作战";
+        btn.onclick = () => location.reload();
+    }
+
+   updateReloadUI(cooldown) {
+    const bar = document.getElementById('reload-bar');
+    const ammoText = document.getElementById('ammo-val');
+    
+    ammoText.innerText = "LOADING...";
+    ammoText.style.color = "#ff3333";
+    
+    let startTime = Date.now();
+    
+    const interval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / cooldown, 1);
+        
+        // Update CSS clip-path or rotation to show progress
+        // Simple rotation hack for circular loader
+        const deg = progress * 360;
+        bar.style.transform = `rotate(${deg - 90}deg)`;
+        
+        if (progress >= 1) {
+            clearInterval(interval);
+            ammoText.innerText = "READY";
+            ammoText.style.color = "#00ffcc";
+            bar.style.transform = `rotate(-90deg)`;
+        }
+    }, 16);
+},
+
+updateHUD() {
+    if (!this.player) return;
+    
+    // HP
+    const hpPct = Math.ceil((this.player.currentHp / this.player.stats.hp) * 100);
+    document.getElementById('hp-val').innerText = `${hpPct}%`;
+    
+    // Speed
+    const speedKmH = Math.abs(Math.round(this.player.velocity * 50));
+    document.getElementById('speed-val').innerText = `${speedKmH} km/h`;
+
+    // Damage Overlay
+    const overlay = document.getElementById('damage-overlay');
+    if (hpPct < 30) {
+        overlay.style.boxShadow = "inset 0 0 50px 20px rgba(255, 0, 0, 0.3)";
+    } else {
+        overlay.style.boxShadow = "none";
+    }
+},
+
+drawMinimap() {
+    const ctx = this.minimapCtx;
+    const w = this.minimapCanvas.width = 150;
+    const h = this.minimapCanvas.height = 150;
+    const scale = w / CONFIG.mapSize;
+
+    ctx.clearRect(0, 0, w, h);
+    
+    // Background
+    ctx.fillStyle = "rgba(0, 20, 0, 0.5)";
+    ctx.fillRect(0, 0, w, h);
+
+    // Draw Tanks
+    this.tanks.forEach(t => {
+        if (t.isDead) return;
+        
+        const x = (t.mesh.position.x + CONFIG.mapSize/2) * scale;
+        const y = (t.mesh.position.z + CONFIG.mapSize/2) * scale; // Z is Y on 2D map
+        
+        ctx.fillStyle = t.isPlayer ? "#ffff00" : (t.team === 'ally' ? "#00ff00" : "#ff0000");
+        ctx.beginPath();
+        ctx.arc(x, y, 2, 0, Math.PI*2);
+        ctx.fill();
+    });
+},
+
+loop() {
+    if (!this.isRunning) return;
+    requestAnimationFrame(() => this.loop());
+
+    const now = Date.now();
+    const dt = now - this.lastTime;
+    this.lastTime = now;
+
+    // 1. Update Tanks
+    this.tanks.forEach(tank => tank.update(dt, this.tanks, this.input));
+
+    // 2. Update Bullets
+    for (let i = this.bullets.length - 1; i >= 0; i--) {
+        this.bullets[i].update(dt, this.tanks);
+        if (!this.bullets[i].active) {
+            this.bullets.splice(i, 1);
+        }
+    }
+
+    // 3. Update Effects
+    this.effects.update(dt);
+
+    // 4. Camera Follow Player
+    if (this.player && !this.player.isDead) {
+        const targetPos = this.player.mesh.position.clone();
+        targetPos.y += 25;
+        targetPos.z += 25;
+        camera.position.lerp(targetPos, 0.1);
+        camera.lookAt(this.player.mesh.position);
+    }
+
+    // 5. Update UI Labels
+    this.tanks.forEach(tank => tank.updateLabel(camera));
+
+    // 6. HUD & Minimap
+    this.updateHUD();
+    this.drawMinimap();
+
+    // Render
+    renderer.render(scene, camera);
+}
+
+// 全局变量，用于所有类内的便捷访问
+let scene, camera, renderer;
+const game = new Game();
+
+// ==========================================
+// 启动游戏主循环
+// ==========================================
+
+function animate() {
+    if (!game.isRunning) return;
+    requestAnimationFrame(animate);
+
+    const now = Date.now();
+    const dt = Math.min(now - game.lastTime, 50); // 限制最大帧间隔防止卡顿跳帧
+    game.lastTime = now;
+
+    // 更新所有坦克实体
+    for (let i = 0; i < game.tanks.length; i++) {
+        const tank = game.tanks[i];
+        if (!tank.isDead) {
+            tank.update(dt, game.tanks, game.playerInput);
+        }
+    }
+
+    // 更新所有炮弹实体
+    for (let i = game.bullets.length - 1; i >= 0; i--) {
+        game.bullets[i].update(dt, game.tanks);
+        if (!game.bullets[i].active) {
+            game.bullets.splice(i, 1);
+        }
+    }
+
+    // 更新粒子特效系统
+    game.effects.update(dt);
+
+    // 相机跟随玩家坦克，平滑插值避免剧烈抖动
+    if (game.player && !game.player.isDead) {
+        const offset = new THREE.Vector3(0, 28, 32);
+        const targetCamPos = game.player.mesh.position.clone().add(offset);
+        camera.position.lerp(targetCamPos, 0.08);
+
+        const lookTarget = game.player.mesh.position.clone();
+        lookTarget.y += 1.5;
+        camera.lookAt(lookTarget);
+    }
+
+    // 同步所有坦克头顶血条标签到屏幕坐标
+    for (let i = 0; i < game.tanks.length; i++) {
+        game.tanks[i].updateLabel(camera);
+    }
+
+    // 刷新HUD面板数据
+    game.updateHUD();
+
+    // 绘制小地图战术概览
+    game.drawMinimap();
+
+    // 最终渲染当前帧画面
+    renderer.render(scene, camera);
+}
+
+// 页面加载完成后自动启动动画循环
+window.addEventListener('load', () => {
+    game.lastTime = Date.now();
+    animate();
+});
+
+// 窗口大小变化时自适应画布
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+</script>
+
 </body>
 </html>
+
+
