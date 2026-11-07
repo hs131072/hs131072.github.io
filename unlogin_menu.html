@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Arc - 探索未来</title>
+<title>Arc - 主页</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
 :root { --mouse-x: 50%; --mouse-y: 50%; }
 body { margin:0; padding:0; overflow:hidden; background:#020617; font-family:'Inter',sans-serif; cursor:none; }
 
-/* 背景 */
+/* 背景层 */
 .ambient-bg { position:absolute; top:0; left:0; width:100%; height:100%; z-index:-3; background:radial-gradient(circle at 50% 50%, #1e1b4b 0%, #0f172a 100%); }
 .noise-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E"); pointer-events:none; z-index:-1; opacity:0.4; }
 
@@ -22,41 +22,42 @@ body { margin:0; padding:0; overflow:hidden; background:#020617; font-family:'In
 @keyframes fluid-move { 0%{transform:translate(0,0) rotate(0deg) scale(1)} 100%{transform:translate(50px,30px) rotate(20deg) scale(1.1)} }
 @keyframes pulse-glow { 0%,100%{opacity:0.3;transform:scale(1)} 50%{opacity:0.6;transform:scale(1.2)} }
 
-/* 光标 */
-.cursor-wrapper { position:fixed; top:0; left:0; pointer-events:none; z-index:9999; transform:translate(-50%,-50%); transition:opacity 0.2s; }
+/* 增强型自定义光标 */
+.cursor-wrapper { position:fixed; top:0; left:0; pointer-events:none; z-index:9999; transform:translate(-50%,-50%); transition:opacity 0.2s, transform 0.1s; }
 .cursor-dot { width:6px; height:6px; background:#fff; border-radius:50%; box-shadow:0 0 15px rgba(255,255,255,0.8); }
 .cursor-ring { position:absolute; top:50%; left:50%; width:40px; height:40px; border:1px solid rgba(255,255,255,0.3); border-radius:50%; transform:translate(-50%,-50%); transition:all 0.15s ease-out; }
 .cursor-glow { position:absolute; top:50%; left:50%; width:400px; height:400px; background:radial-gradient(circle,rgba(255,255,255,0.08) 0%,transparent 50%); transform:translate(-50%,-50%); mix-blend-mode:screen; }
 
-/* 玻璃卡片 */
-.glass-container { position:relative; width:100%; max-width:650px; padding:4rem 3.5rem; border-radius:40px; background:rgba(255,255,255,0.02); backdrop-filter:blur(40px) saturate(180%); -webkit-backdrop-filter:blur(40px) saturate(180%); border:1px solid rgba(255,255,255,0.08); box-shadow:0 40px 80px -20px rgba(0,0,0,0.5),inset 0 0 0 1px rgba(255,255,255,0.05),inset 0 0 60px rgba(255,255,255,0.02); transform-style:preserve-3d; transition:transform 0.1s ease-out; display:flex; flex-direction:column; align-items:center; gap:3rem; overflow:hidden; }
+/* 极致玻璃卡片 */
+.glass-container { position:relative; width:100%; max-width:700px; padding:4rem 3rem; border-radius:40px; background:rgba(255,255,255,0.02); backdrop-filter:blur(40px) saturate(180%); -webkit-backdrop-filter:blur(40px) saturate(180%); border:1px solid rgba(255,255,255,0.08); box-shadow:0 40px 80px -20px rgba(0,0,0,0.5),inset 0 0 0 1px rgba(255,255,255,0.05),inset 0 0 60px rgba(255,255,255,0.02); transform-style:preserve-3d; transition:transform 0.1s ease-out; display:flex; flex-direction:column; align-items:center; gap:2.5rem; overflow:hidden; }
 .glass-reflection { position:absolute; top:0; left:0; width:100%; height:100%; background:radial-gradient(circle at var(--mouse-x) var(--mouse-y),rgba(255,255,255,0.1) 0%,transparent 40%),linear-gradient(125deg,rgba(255,255,255,0.05) 0%,transparent 40%,rgba(255,255,255,0.02) 100%); pointer-events:none; z-index:1; }
 .glass-border-glow { position:absolute; top:-2px; left:-2px; right:-2px; bottom:-2px; background:linear-gradient(45deg,transparent 40%,rgba(255,255,255,0.1) 50%,transparent 60%); border-radius:42px; z-index:-1; opacity:0; transition:opacity 0.5s; }
 .glass-container:hover .glass-border-glow { opacity:1; }
 
-/* 标题 */
-.arc-title { font-size:5rem; font-weight:900; letter-spacing:-0.05em; background:linear-gradient(135deg,#fff 0%,#cbd5e1 50%,#94a3b8 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; position:relative; z-index:10; transition:all 0.5s cubic-bezier(0.34,1.56,0.64,1); filter:drop-shadow(0 0 20px rgba(255,255,255,0.1)); }
+/* 全息光泽标题 */
+.arc-title { font-size:4.5rem; font-weight:900; letter-spacing:-0.05em; background:linear-gradient(135deg,#fff 0%,#cbd5e1 50%,#94a3b8 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; position:relative; z-index:10; transition:all 0.5s cubic-bezier(0.34,1.56,0.64,1); filter:drop-shadow(0 0 20px rgba(255,255,255,0.1)); }
 .arc-title:hover { transform:scale(1.05) translateY(-5px); filter:drop-shadow(0 0 40px rgba(255,255,255,0.3)); }
 .arc-title::before { content:'Arc'; position:absolute; top:0; left:0; width:100%; height:100%; background:linear-gradient(90deg,transparent,rgba(255,255,255,0.8),transparent); background-size:200% 100%; background-position:-100% 0; -webkit-background-clip:text; -webkit-text-fill-color:transparent; opacity:0; transition:opacity 0.3s; }
 .arc-title:hover::before { animation:shine-sweep 1.5s infinite linear; opacity:0.6; }
 @keyframes shine-sweep { 0%{background-position:-100% 0} 100%{background-position:200% 0} }
-.arc-subtitle { color:#94a3b8; font-size:1.1rem; font-weight:400; letter-spacing:0.2em; text-transform:uppercase; position:relative; z-index:10; }
+.arc-subtitle { color:#94a3b8; font-size:1rem; font-weight:400; letter-spacing:0.2em; text-transform:uppercase; position:relative; z-index:10; }
 .arc-subtitle::after { content:''; display:block; width:40px; height:1px; background:rgba(255,255,255,0.2); margin:1rem auto 0; transition:width 0.5s; }
 .glass-container:hover .arc-subtitle::after { width:80px; background:rgba(255,255,255,0.5); }
 
-/* 按钮 */
-.btn-group { display:flex; gap:2rem; width:100%; justify-content:center; perspective:1000px; }
-.liquid-btn { position:relative; padding:1.2rem 2.5rem; border-radius:20px; font-weight:600; color:#fff; text-decoration:none; border:1px solid rgba(255,255,255,0.1); min-width:180px; display:flex; align-items:center; justify-content:center; gap:0.8rem; transition:all 0.5s cubic-bezier(0.23,1,0.32,1); overflow:hidden; background:rgba(255,255,255,0.03); box-shadow:0 10px 30px -10px rgba(0,0,0,0.2); }
-.btn-primary { background:linear-gradient(135deg,rgba(255,255,255,0.1) 0%,rgba(255,255,255,0.05) 100%); }
-.btn-primary:hover { border-color:rgba(255,255,255,0.3); box-shadow:0 20px 40px -10px rgba(56,189,248,0.4); transform:translateY(-5px); }
-.btn-secondary:hover { border-color:rgba(255,255,255,0.2); box-shadow:0 20px 40px -10px rgba(232,121,249,0.2); transform:translateY(-5px); }
+/* 液态光效磁吸按钮 */
+.nav-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:1.5rem; width:100%; perspective:1000px; z-index:10; }
+.liquid-btn { position:relative; padding:1.2rem 1.5rem; border-radius:20px; font-weight:600; color:#fff; text-decoration:none; border:1px solid rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; gap:0.8rem; transition:all 0.5s cubic-bezier(0.23,1,0.32,1); overflow:hidden; background:rgba(255,255,255,0.03); box-shadow:0 10px 30px -10px rgba(0,0,0,0.2); }
+.liquid-btn:hover { border-color:rgba(255,255,255,0.3); box-shadow:0 20px 40px -10px rgba(129,140,248,0.3); transform:translateY(-5px); }
 .btn-shine { position:absolute; top:0; left:-100%; width:50%; height:100%; background:linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent); transform:skewX(-20deg); transition:left 0.5s; }
 .liquid-btn:hover .btn-shine { left:150%; transition:left 0.7s ease-in-out; }
 .btn-glow { position:absolute; width:100%; height:100%; top:0; left:0; background:radial-gradient(circle at var(--mouse-x) var(--mouse-y),rgba(255,255,255,0.15) 0%,transparent 60%); opacity:0; transition:opacity 0.3s; pointer-events:none; }
 .liquid-btn:hover .btn-glow { opacity:1; }
 
-/* 粒子 */
+/* 点击粒子特效 */
 .click-particle { position:fixed; width:4px; height:4px; background:#fff; border-radius:50%; pointer-events:none; z-index:9998; box-shadow:0 0 10px #fff; }
+
+/* 涟漪动画 */
+@keyframes ripple-anim { to { transform: scale(4); opacity: 0; } }
 </style>
 </head>
 <body>
@@ -67,7 +68,7 @@ body { margin:0; padding:0; overflow:hidden; background:#020617; font-family:'In
 </div>
 <div class="noise-overlay"></div>
 
-<!-- 光标 -->
+<!-- 增强型自定义光标 -->
 <div class="cursor-wrapper" id="cursorWrapper">
   <div class="cursor-dot"></div>
   <div class="cursor-ring"></div>
@@ -84,23 +85,41 @@ body { margin:0; padding:0; overflow:hidden; background:#020617; font-family:'In
       <p class="arc-subtitle">Navigate the Digital Void</p>
     </div>
 
-    <div class="btn-group z-10">
-      <a href="login_page.html" class="liquid-btn btn-primary magnetic-btn">
+    <div class="nav-grid">
+      <a href="#" class="liquid-btn magnetic-btn">
         <div class="btn-shine"></div>
         <span class="btn-glow"></span>
-        <i class="fa-solid fa-fingerprint"></i>
-        <span>登录 / 注册</span>
+        <i class="fa-solid fa-house"></i>
+        <span>主页</span>
       </a>
-      <a href="unlogin_menu.html" class="liquid-btn btn-secondary magnetic-btn">
+      <a href="#" class="liquid-btn magnetic-btn">
         <div class="btn-shine"></div>
         <span class="btn-glow"></span>
-        <i class="fa-solid fa-paper-plane"></i>
-        <span>游客进入</span>
+        <i class="fa-solid fa-book-open"></i>
+        <span>百科</span>
+      </a>
+      <a href="#" class="liquid-btn magnetic-btn">
+        <div class="btn-shine"></div>
+        <span class="btn-glow"></span>
+        <i class="fa-solid fa-gamepad"></i>
+        <span>小游戏</span>
+      </a>
+      <a href="#" class="liquid-btn magnetic-btn">
+        <div class="btn-shine"></div>
+        <span class="btn-glow"></span>
+        <i class="fa-solid fa-screwdriver-wrench"></i>
+        <span>工具</span>
+      </a>
+      <a href="#" class="liquid-btn magnetic-btn">
+        <div class="btn-shine"></div>
+        <span class="btn-glow"></span>
+        <i class="fa-solid fa-ellipsis"></i>
+        <span>其他</span>
       </a>
     </div>
 
-    <div class="mt-4 text-[10px] text-slate-500 font-mono tracking-[0.3em] opacity-40 uppercase z-10">
-      System Online // v4.0 Enhanced
+    <div class="mt-2 text-[10px] text-slate-500 font-mono tracking-[0.3em] opacity-40 uppercase z-10">
+      System Online // Navigation
     </div>
   </div>
 </main>
@@ -112,18 +131,29 @@ const glassCard = document.getElementById('glassCard');
 const buttons = document.querySelectorAll('.liquid-btn');
 const arcTitle = document.getElementById('arcTitle');
 
+// 鼠标移动全量交互逻辑
 document.addEventListener('mousemove', (e) => {
   const x = e.clientX, y = e.clientY;
+  
+  // 光标主体跟随
   cursorWrapper.style.left = x + 'px';
   cursorWrapper.style.top = y + 'px';
+
+  // 外环延迟缩放
   setTimeout(() => { cursorRing.style.transform = 'translate(-50%,-50%) scale(1.2)'; }, 50);
+
+  // 更新全局鼠标坐标变量
   document.documentElement.style.setProperty('--mouse-x', x + 'px');
   document.documentElement.style.setProperty('--mouse-y', y + 'px');
+
+  // 按钮内部光效定位
   buttons.forEach(btn => {
     const r = btn.getBoundingClientRect();
     btn.style.setProperty('--mouse-x', ((x - r.left) / r.width * 100) + '%');
     btn.style.setProperty('--mouse-y', ((y - r.top) / r.height * 100) + '%');
   });
+
+  // 玻璃卡片3D倾斜
   if (glassCard) {
     const r = glassCard.getBoundingClientRect();
     const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
@@ -131,6 +161,8 @@ document.addEventListener('mousemove', (e) => {
     const rx = -((y - cy) / (window.innerHeight / 2)) * 10;
     glassCard.style.transform = 'perspective(1000px) rotateX(' + rx + 'deg) rotateY(' + ry + 'deg)';
   }
+
+  // 标题视差偏移
   if (arcTitle) {
     const r = glassCard.getBoundingClientRect();
     const tx = (x - r.left - r.width / 2) / 25;
@@ -139,6 +171,7 @@ document.addEventListener('mousemove', (e) => {
   }
 });
 
+// 点击光标缩放+粒子爆发
 document.addEventListener('mousedown', (e) => {
   cursorWrapper.style.opacity = '0';
   cursorRing.style.transform = 'translate(-50%,-50%) scale(0.8)';
@@ -149,6 +182,7 @@ document.addEventListener('mouseup', () => {
   cursorRing.style.transform = 'translate(-50%,-50%) scale(1)';
 });
 
+// 按钮磁吸效果
 buttons.forEach(btn => {
   btn.addEventListener('mousemove', (e) => {
     const r = btn.getBoundingClientRect();
@@ -159,6 +193,7 @@ buttons.forEach(btn => {
   btn.addEventListener('mouseleave', () => { btn.style.transform = 'translate(0,0)'; });
 });
 
+// 点击粒子生成函数
 function createClickParticles(x, y) {
   for (let i = 0; i < 12; i++) {
     const p = document.createElement('div');
@@ -175,6 +210,7 @@ function createClickParticles(x, y) {
   }
 }
 
+// 按钮点击涟漪特效
 buttons.forEach(btn => {
   btn.addEventListener('click', function(e) {
     const ripple = document.createElement('span');
@@ -188,9 +224,6 @@ buttons.forEach(btn => {
     setTimeout(() => ripple.remove(), 800);
   });
 });
-const ss = document.createElement('style');
-ss.innerText = '@keyframes ripple-anim { to { transform: scale(4); opacity: 0; } }';
-document.head.appendChild(ss);
 </script>
 </body>
 </html>
