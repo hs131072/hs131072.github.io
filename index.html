@@ -94,8 +94,8 @@ body { margin:0; padding:0; overflow:hidden; background:#020617; font-family:'In
         <i class="fa-solid fa-fingerprint"></i>
         <span>登录 / 注册</span>
       </a>
-      <!-- 游客进入按钮直接跳转优化版菜单页面 -->
-      <a href="#unlogin-menu" class="liquid-btn btn-secondary magnetic-btn">
+      <!-- 游客进入按钮跳转至指定外部页面 -->
+      <a href="https://hs131072.github.io/unlogin_menu.html" class="liquid-btn btn-secondary magnetic-btn">
         <div class="btn-shine"></div>
         <span class="btn-glow"></span>
         <i class="fa-solid fa-paper-plane"></i>
@@ -109,48 +109,12 @@ body { margin:0; padding:0; overflow:hidden; background:#020617; font-family:'In
   </div>
 </main>
 
-<!-- 内嵌优化版无登录菜单页面 -->
-<div id="unlogin-menu" class="fixed inset-0 z-50 bg-[#020617] hidden flex-col items-center justify-center p-4">
-  <div class="glass-container max-w-2xl w-full">
-    <h2 class="arc-subtitle text-center mb-8">游客模式</h2>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-      <a href="#" class="liquid-btn w-full justify-center">
-        <i class="fa-solid fa-book"></i>
-        <span>浏览内容</span>
-      </a>
-      <a href="#" class="liquid-btn w-full justify-center">
-        <i class="fa-solid fa-gamepad"></i>
-        <span>体验功能</span>
-      </a>
-      <a href="#" class="liquid-btn w-full justify-center">
-        <i class="fa-solid fa-info-circle"></i>
-        <span>关于我们</span>
-      </a>
-      <a href="#" class="liquid-btn w-full justify-center" onclick="history.back(); return false;">
-        <i class="fa-solid fa-arrow-left"></i>
-        <span>返回首页</span>
-      </a>
-    </div>
-  </div>
-</div>
-
 <script>
 const cursorWrapper = document.getElementById('cursorWrapper');
 const cursorRing = document.querySelector('.cursor-ring');
 const glassCard = document.getElementById('glassCard');
 const buttons = document.querySelectorAll('.liquid-btn');
 const arcTitle = document.getElementById('arcTitle');
-const unloginMenu = document.getElementById('unlogin-menu');
-
-// 游客进入按钮点击切换页面显示
-document.querySelector('a[href="#unlogin-menu"]').addEventListener('click', (e) => {
-  e.preventDefault();
-  unloginMenu.classList.remove('hidden');
-  unloginMenu.classList.add('flex');
-  // 页面切换过渡动画
-  unloginMenu.style.opacity = '0';
-  setTimeout(() => { unloginMenu.style.opacity = '1'; unloginMenu.style.transition = 'opacity 0.5s ease'; }, 10);
-});
 
 // 鼠标移动全量交互逻辑
 document.addEventListener('mousemove', (e) => {
