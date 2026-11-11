@@ -2,742 +2,390 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>飞机大战 - 手绘版｜超多卡牌</title>
+<title>弹幕射击 - 持续升级版</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui}
-body{background:#111;color:#fff;display:flex;flex-direction:column;align-items:center;padding:10px}
-#gameBox{position:relative;width:420px;height:650px;background:#000;border:2px solid #444;overflow:hidden;cursor:none}
-#canvas{display:block}
-.panel{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px;z-index:10}
-.cardBox{display:flex;gap:12px;margin:20px 0;flex-wrap:wrap;justify-content:center}
-.card{width:100px;height:140px;border:1px solid #48f;border-radius:8px;padding:8px;text-align:center;cursor:pointer;background:#0a1830;transition:0.2s}
-.card.gold{border-color:#ffd700;background:#2c2400;box-shadow:0 0 8px #ffd70077}
-.card:hover{transform:scale(1.05)}
-.btns{margin:8px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
-button{padding:7px 12px;border:none;border-radius:4px;background:#257;color:#fff;cursor:pointer}
-button:hover{background:#369}
-#tip{margin:6px;color:#aaa;font-size:14px}
-input{display:none}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#111;color:#fff;font-family:system-ui}
+canvas{display:block;margin:10px auto;background:#000;border:2px solid #444}
+#info{text-align:center;margin:8px}
 </style>
 </head>
 <body>
-<div class="btns">
-<button id="saveBtn">导出存档txt</button>
-<button id="loadBtn">加载存档txt</button>
-<input type="file" id="fileInput" accept=".txt">
-<button id="restartBtn">重新开始</button>
-</div>
-<div id="tip">鼠标移动控制飞机（瞬移跟随鼠标）｜空格射击｜P暂停｜击败BOSS后选强化卡，金色为稀有卡！</div>
-<div id="gameBox">
-<canvas id="canvas" width="420" height="650"></canvas>
-<!-- 暂停面板 -->
-<div id="pausePanel" class="panel">
-<h2>游戏暂停</h2>
-<p>按 P 继续游戏</p>
-</div>
-<!-- 卡片选择面板 -->
-<div id="cardPanel" class="panel">
-<h3>选择一张强化卡</h3>
-<div class="cardBox" id="cardList"></div>
-</div>
-<!-- 游戏结束面板 -->
-<div id="overPanel" class="panel">
-<h2 id="overText">游戏结束</h2>
-<button id="overRestart">再来一局</button>
-</div>
-</div>
+<div id="info">WASD移动｜空格射击｜Q大招｜拾取卡片｜波次越高敌人越肉、刷新越快</div>
+<canvas id="game" width="480" height="720"></canvas>
 
 <script>
-const canvas = document.getElementById('canvas');
+const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
-const gameBox = document.getElementById('gameBox');
-const pausePanel = document.getElementById('pausePanel');
-const cardPanel = document.getElementById('cardPanel');
-const cardList = document.getElementById('cardList');
-const overPanel = document.getElementById('overPanel');
-const overText = document.getElementById('overText');
+const W = canvas.width;
+const H = canvas.height;
 
-const saveBtn = document.getElementById('saveBtn');
-const loadBtn = document.getElementById('loadBtn');
-const fileInput = document.getElementById('fileInput');
-const restartBtn = document.getElementById('restartBtn');
-const overRestart = document.getElementById('overRestart');
+// 游戏状态
+let player = {x:W/2,y:H-80,w:32,h:32,speed:5,hp:5,ultCd:0,ultReady:true};
+let bullets = [];
+let enemyBullets = [];
+let enemies = [];
+let wingmen = [];
+let cards = [];
+let particles = [];
+let wave = 1;
+let spawnTimer = 0;
+let spawnInterval = 1.8;
+let enemiesPerWave = 6;
+let spawnedThisWave = 0;
+let waveDelay = 0;
+let boss = null;
+let score = 0;
+let keys = {};
 
-let game = {
-    run: true,
-    pause: false,
-    level: 1,
-    score: 0,
-    hp: 100,
-    maxHp: 100,
-    atk: 1,
-    shield: 0,
-    bulletCount: 1,
-    spreadBullet: false,
-    pierce: false,
-    trackBullet: false,
-    reboundBullet: false,
-    explodeBullet: false,
-    critRate: 0,
-    lifesteal: 0,
-    bulletSpeed: 7,
-    slowEnemy: false,
-    wingman: false,
-    player: {x: 210, y: 550, w:40, h:40},
-    wingmans: [],
-    bullets: [],
-    enemies: [],
-    boss: null,
-    stars: [],
-    particles: [],
-    lastShot: 0,
-    shotCd: 220,
-    enemyCount: 0,
-    needKill: 12,
-    reduceDmg:0
-}
-const keys = {};
-let mouseX = game.player.x;
-let mouseY = game.player.y;
+// 卡片效果
+let perks = {
+  pierce:false,
+  bulletPlus:false,
+  fireRate:1,
+  damage:1
+};
 
-// 卡牌池 21张
-const cardPool = [
-    {name:"攻击强化",desc:"攻击力+0.3",type:"atk",val:0.3,gold:false},
-    {name:"射速强化",desc:"射击冷却-30ms",type:"fire",val:-30,gold:false},
-    {name:"护盾",desc:"获得20护盾值",type:"shield",val:20,gold:false},
-    {name:"生命恢复",desc:"回血25点",type:"heal",val:25,gold:false},
-    {name:"弹幕+1",desc:"每次发射子弹数量+1",type:"bulletNum",val:1,gold:false},
-    {name:"扇形弹幕",desc:"子弹变成扇形发射",type:"spread",val:true,gold:false},
-    {name:"穿透弹",desc:"子弹可以穿透敌人",type:"pierce",val:true,gold:false},
-    {name:"反弹弹",desc:"子弹碰到边界反弹",type:"rebound",val:true,gold:false},
-    {name:"爆炸弹",desc:"子弹命中产生小爆炸",type:"explode",val:true,gold:false},
-    {name:"暴击",desc:"暴击率+15%",type:"crit",val:0.15,gold:false},
-    {name:"吸血",desc:"击杀敌人回复3血",type:"lifesteal",val:3,gold:false},
-    {name:"子弹加速",desc:"子弹速度+2",type:"bulletSpd",val:2,gold:false},
-    {name:"减速光环",desc:"场上敌人移速降低",type:"slow",val:true,gold:false},
-    {name:"【金卡】狂暴",desc:"攻击+0.8，扣15血量",type:"rage",val:0.8,gold:true},
-    {name:"【金卡】铁壁",desc:"护盾+50",type:"fort",val:50,gold:true},
-    {name:"【金卡】急速",desc:"冷却-60，攻击-0.1",type:"rapid",val:-60,gold:true},
-    {name:"【金卡】满愈",desc:"血量回满",type:"fullheal",val:0,gold:true},
-    {name:"【金卡】追踪弹",desc:"子弹自动追踪敌人",type:"track",val:true,gold:true},
-    {name:"【金卡】僚机召唤",desc:"召唤一架僚机协助射击",type:"wingman",val:true,gold:true},
-    {name:"多重弹幕",desc:"弹幕+2",type:"bulletNum2",val:2,gold:false},
-    {name:"生命上限",desc:"最大血量+30，回满",type:"maxhp",val:30,gold:false},
-    {name:"减伤光环",desc:"受到伤害-2",type:"reduceDmg",val:2,gold:false},
-    {name:"蓄力速射",desc:"冷却-40",type:"fastfire",val:-40,gold:false},
-]
-
-function initStar(){
-    game.stars = []
-    for(let i=0;i<60;i++){
-        game.stars.push({
-            x:Math.random()*canvas.width,
-            y:Math.random()*canvas.height,
-            s:Math.random()*2+0.5,
-            spd:Math.random()*1.5+0.3
-        })
+// 输入监听
+document.addEventListener('keydown',e=>{
+  keys[e.code]=true;
+  if(e.code==='KeyQ' && player.ultReady) doUltimate();
+});
+document.addEventListener('keyup',e=>keys[e.code]=false);
+canvas.onclick = (ev)=>{
+  const r = canvas.getBoundingClientRect();
+  const mx = ev.clientX - r.left;
+  const my = ev.clientY - r.top;
+  for(let i=cards.length-1;i>=0;i--){
+    const c = cards[i];
+    const d = Math.hypot(mx-c.x,my-c.y);
+    if(d<22){
+      applyCard(c.type);
+      cards.splice(i,1);
     }
+  }
 }
 
-function initLevel(){
-    game.enemies = [];
-    game.bullets = [];
-    game.boss = null;
-    game.enemyCount = 0;
-    game.needKill = 10 + game.level * 5;
+// 玩家射击
+let shootTimer = 0;
+function shoot(){
+  shootTimer += 0.016;
+  const fr = 0.2 / perks.fireRate;
+  if(shootTimer<fr) return;
+  shootTimer=0;
+  const b = newBullet(player.x,player.y-20,0,-7,perks.pierce,perks.damage);
+  bullets.push(b);
+  if(perks.bulletPlus){
+    bullets.push(newBullet(player.x-12,player.y-20,-0.1,-7,perks.pierce,perks.damage));
+    bullets.push(newBullet(player.x+12,player.y-20,0.1,-7,perks.pierce,perks.damage));
+  }
 }
 
-function resetGame(){
-    game = {
-        run:true, pause:false,
-        level:1, score:0, hp:100, maxHp:100,
-        atk:1, shield:0,
-        bulletCount:1, spreadBullet:false, pierce:false, trackBullet:false,
-        reboundBullet:false, explodeBullet:false, critRate:0, lifesteal:0,
-        bulletSpeed:7, slowEnemy:false, wingman:false, wingmans:[],
-        player:{x:210,y:550,w:40,h:40},
-        bullets:[], enemies:[], boss:null, stars:[], particles:[],
-        lastShot:0, shotCd:220,
-        enemyCount:0, needKill:12, reduceDmg:0
-    }
-    mouseX = game.player.x;
-    mouseY = game.player.y;
-    initStar();
-    initLevel();
-    hideAllPanel();
+function newBullet(x,y,ax,ay,pierce=false,dmg=1){
+  return {x,y,vx:ax,vy:ay,pierce,hitSet:new Set(),dmg,life:3};
 }
 
-function hideAllPanel(){
-    pausePanel.style.display='none';
-    cardPanel.style.display='none';
-    overPanel.style.display='none';
+// 僚机初始化
+function initWingman(){
+  wingmen = [
+    {ox:-35,oy:10,shootT:0},
+    {ox:35,oy:10,shootT:0}
+  ];
 }
 
-function createExplode(x,y,color,count=12){
-    for(let i=0;i<count;i++){
-        const ang = (Math.PI*2 / count)*i;
-        const spd = 1+Math.random()*2;
-        game.particles.push({
-            x,y,
-            vx:Math.cos(ang)*spd,
-            vy:Math.sin(ang)*spd,
-            life:25,
-            color,
-            size:3+Math.random()*3
-        })
-    }
+function wingmanShoot(w){
+  w.shootT +=0.016;
+  if(w.shootT<0.35) return;
+  w.shootT=0;
+  const bx = player.x + w.ox;
+  const by = player.y + w.oy -15;
+  bullets.push(newBullet(bx,by,0,-6,perks.pierce,perks.damage));
 }
 
-function updateParticles(){
-    for(let i=game.particles.length-1;i>=0;i--){
-        const p = game.particles[i];
-        p.x += p.vx;
-        p.y += p.vy;
-        p.life--;
-        p.size *=0.94;
-        if(p.life <=0){
-            game.particles.splice(i,1);
-        }
-    }
-}
-function drawParticles(){
-    game.particles.forEach(p=>{
-        ctx.fillStyle=p.color;
-        ctx.globalAlpha=p.life/25;
-        ctx.beginPath();
-        ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
-        ctx.fill();
-    })
-    ctx.globalAlpha=1;
+// 大招
+function doUltimate(){
+  if(!player.ultReady) return;
+  player.ultReady = false;
+  player.ultCd = 8;
+  // 清小怪，打BOSS
+  enemies.forEach(e=>e.hp=0);
+  if(boss) boss.hp -= 40;
+  // 短暂无敌
+  player.inv = 1.2;
 }
 
+// 卡片
+function applyCard(type){
+  switch(type){
+    case 'pierce': perks.pierce=true; break;
+    case 'bulletPlus': perks.bulletPlus=true; break;
+    case 'fireRate': perks.fireRate +=0.3; break;
+    case 'damage': perks.damage +=0.4; break;
+  }
+}
+function spawnCard(x,y){
+  const types = ['pierce','bulletPlus','fireRate','damage'];
+  cards.push({x,y,type:types[Math.floor(Math.random()*types.length)],life:8});
+}
+
+// 敌人
 function spawnEnemy(){
-    const w=32,h=32;
-    let spd = 1.2 + game.level*0.15;
-    if(game.slowEnemy) spd *= 0.6;
-    game.enemies.push({
-        x:Math.random()*(canvas.width-w),
-        y:-h, w,h,
-        hp: 20 + game.level*6,
-        spd: spd
-    })
+  const side = Math.random();
+  let kind = 0;
+  if(side<0.4) kind=0; //普通
+  else if(side<0.7) kind=1; //高速
+  else kind=2; //射击怪
+  const hpScale = Math.pow(1.15, wave-1);
+  const baseHp = Math.round(3*hpScale);
+  const ex = 40 + Math.random()*(W-80);
+  const ey = -20;
+  let spd = 1.8;
+  let canShoot = false;
+  if(kind===1) spd *=2.2;
+  if(kind===2) canShoot=true;
+  enemies.push({
+    x:ex,y:ey,w:28,h:28,hp:baseHp,maxHp:baseHp,speed:spd,canShoot,shootT:0
+  });
 }
 
 function spawnBoss(){
-    const w=120,h=80;
-    game.boss = {
-        x: canvas.width/2 - w/2,
-        y:-h, w,h,
-        hp: 300 + game.level * 120,
-        maxHp: 300 + game.level *120,
-        spd:1.1, dir:1,
-        phase:1,
-        lastShot:0, shotCd:700,
-        pattern:0
-    }
+  boss = {
+    x:W/2,y:-60,w:90,h:70,hp:120*wave,maxHp:120*wave,phase:0,shootT:0
+  }
 }
 
-function showCardSelect(){
-    game.pause = true;
-    cardPanel.style.display='flex';
-    cardList.innerHTML = '';
-    let pick = [];
-    let temp = [...cardPool];
-    for(let i=0;i<3;i++){
-        let r;
-        if(Math.random()<0.25){
-            const goldList = temp.filter(c=>c.gold);
-            if(goldList.length>0){
-                const g = goldList[Math.floor(Math.random()*goldList.length)];
-                pick.push(g);
-                temp.splice(temp.indexOf(g),1);
-                continue;
-            }
+// 更新BOSS弹幕（修复不动问题，持续移动弹幕）
+function bossUpdate(dt){
+  if(!boss) return;
+  boss.shootT += dt;
+  if(boss.shootT>0.4){
+    boss.shootT=0;
+    const ang = Math.PI*2*Math.random();
+    for(let i=0;i<8;i++){
+      const a = Math.PI*2/8*i + boss.phase*0.25;
+      enemyBullets.push({
+        x:boss.x,y:boss.y+30,
+        vx:Math.cos(a)*3.2,
+        vy:Math.sin(a)*3.2,
+        life:5
+      })
+    }
+    boss.phase++;
+  }
+  if(boss.y<120) boss.y += 1.2;
+  if(boss.hp<=0){
+    spawnCard(boss.x,boss.y);
+    score += 500;
+    boss=null;
+    wave++;
+    spawnInterval *=0.92; //刷新加速
+    enemiesPerWave +=2;
+    spawnedThisWave=0;
+    waveDelay=2.5;
+  }
+}
+
+// 碰撞检测
+function rectHit(a,b,aw,ah,bw,bh){
+  return a.x-aw/2 < b.x+bw/2 && a.x+aw/2 > b.x-bw/2 &&
+         a.y-ah/2 < b.y+bh/2 && a.y+ah/2 > b.y-bh/2;
+}
+
+function update(dt){
+  // 玩家移动
+  let mx=0,my=0;
+  if(keys['KeyA']) mx-=1; if(keys['KeyD']) mx+=1;
+  if(keys['KeyW']) my-=1; if(keys['KeyS']) my+=1;
+  const len = Math.hypot(mx,my);
+  if(len>0){mx/=len;my/=len;}
+  player.x += mx*player.speed;
+  player.y += my*player.speed;
+  player.x = Math.max(16,Math.min(W-16,player.x));
+  player.y = Math.max(16,Math.min(H-16,player.y));
+
+  if(keys['Space']) shoot();
+
+  // 大招冷却
+  if(player.ultCd>0){
+    player.ultCd -= dt;
+    if(player.ultCd<=0) player.ultReady=true;
+  }
+  if(player.inv>0) player.inv-=dt;
+
+  // 僚机
+  wingmen.forEach(w=>{
+    wingmanShoot(w);
+    w.x = player.x + w.ox;
+    w.y = player.y + w.oy;
+  })
+
+  // 子弹更新
+  for(let i=bullets.length-1;i>=0;i--){
+    const b = bullets[i];
+    b.x += b.vx; b.y += b.vy; b.life -= dt;
+    if(b.life<=0 || b.y<-10 || b.y>H+10){bullets.splice(i,1);continue;}
+    // 和敌人碰撞
+    for(let j=enemies.length-1;j>=0;j--){
+      const e = enemies[j];
+      if(rectHit(b,e,8,14,e.w,e.h)){
+        if(b.hitSet.has(e)) continue;
+        b.hitSet.add(e);
+        e.hp -= b.dmg;
+        if(e.hp<=0){
+          spawnCard(e.x,e.y);
+          score +=10;
+          enemies.splice(j,1);
         }
-        const normal = temp.filter(c=>!c.gold);
-        r = Math.floor(Math.random()*normal.length);
-        pick.push(normal[r]);
-        temp.splice(temp.indexOf(normal[r]),1);
+        if(!b.pierce){bullets.splice(i,1);break;}
+      }
     }
-    pick.forEach(c=>{
-        let div = document.createElement('div');
-        div.className='card '+(c.gold?'gold':'');
-        div.innerHTML = `<div style="font-size:16px;margin-bottom:6px">${c.name}</div><div style="font-size:12px;color:#acf">${c.desc}</div>`;
-        div.onclick = ()=>{
-            applyCard(c);
-            cardPanel.style.display='none';
-            game.pause = false;
-            game.level +=1;
-            initLevel();
-        }
-        cardList.appendChild(div);
-    })
+    // BOSS碰撞
+    if(boss && rectHit(b,boss,8,14,boss.w,boss.h)){
+      if(b.hitSet.has(boss)) continue;
+      b.hitSet.add(boss);
+      boss.hp -= b.dmg;
+      if(!b.pierce){bullets.splice(i,1);break;}
+    }
+  }
+
+  // 敌人子弹
+  for(let i=enemyBullets.length-1;i>=0;i--){
+    const eb = enemyBullets[i];
+    eb.x += eb.vx; eb.y += eb.vy; eb.life -= dt;
+    if(eb.life<=0 || eb.y>H+10 || eb.x<0||eb.x>W){enemyBullets.splice(i,1);continue;}
+    if(player.inv<=0 && rectHit(eb,player,10,10,player.w,player.h)){
+      player.hp--;
+      player.inv=1;
+      enemyBullets.splice(i,1);
+    }
+  }
+
+  // 敌人更新
+  for(let i=enemies.length-1;i>=0;i--){
+    const e = enemies[i];
+    const dx = player.x - e.x;
+    const dy = player.y - e.y;
+    const d = Math.hypot(dx,dy);
+    if(d>0){e.x += dx/d*e.speed; e.y += dy/d*e.speed;}
+    if(e.canShoot){
+      e.shootT += dt;
+      if(e.shootT>2.2){
+        e.shootT=0;
+        const a = Math.atan2(dy,dx);
+        enemyBullets.push({x:e.x,y:e.y, vx:Math.cos(a)*2.8, vy:Math.sin(a)*2.8, life:4})
+      }
+    }
+    if(e.y>H+40) enemies.splice(i,1);
+  }
+
+  bossUpdate(dt);
+
+  // 波次生成
+  waveDelay -= dt;
+  if(waveDelay<=0){
+    spawnTimer += dt;
+    if(spawnTimer>spawnInterval && spawnedThisWave < enemiesPerWave){
+      spawnTimer=0;
+      spawnEnemy();
+      spawnedThisWave++;
+    }
+    if(spawnedThisWave >= enemiesPerWave && !boss && enemies.length===0){
+      if(wave%5===0){
+        spawnBoss();
+      }else{
+        wave++;
+        spawnInterval *=0.92;
+        enemiesPerWave +=2;
+        spawnedThisWave=0;
+        waveDelay=2;
+      }
+    }
+  }
+
+  // 卡片超时
+  for(let i=cards.length-1;i>=0;i--){
+    cards[i].life -= dt;
+    if(cards[i].life<=0) cards.splice(i,1);
+  }
 }
 
-function applyCard(card){
-    switch(card.type){
-        case 'atk': game.atk += card.val; break;
-        case 'fire': game.shotCd += card.val; break;
-        case 'shield': game.shield += card.val; break;
-        case 'heal': game.hp = Math.min(game.maxHp, game.hp+card.val); break;
-        case 'rage': game.atk += card.val; game.hp -=15; break;
-        case 'fort': game.shield += card.val; break;
-        case 'rapid': game.shotCd += card.val; game.atk -=0.1; break;
-        case 'fullheal': game.hp = game.maxHp; break;
-        case 'spread': game.spreadBullet = true; break;
-        case 'pierce': game.pierce = true; break;
-        case 'track': game.trackBullet = true; break;
-        case 'rebound': game.reboundBullet = true; break;
-        case 'explode': game.explodeBullet = true; break;
-        case 'crit': game.critRate += card.val; break;
-        case 'lifesteal': game.lifesteal = card.val; break;
-        case 'bulletSpd': game.bulletSpeed += card.val; break;
-        case 'slow': game.slowEnemy = true; break;
-        case 'wingman':
-            game.wingman = true;
-            game.wingmans.push({offsetX:-30, offsetY:20});
-            game.wingmans.push({offsetX:30, offsetY:20});
-            break;
-        case 'bulletNum': game.bulletCount += card.val; break;
-        case 'bulletNum2': game.bulletCount += card.val; break;
-        case 'maxhp': game.maxHp += card.val; game.hp = game.maxHp; break;
-        case 'reduceDmg': game.reduceDmg += card.val; break;
-        case 'fastfire': game.shotCd += card.val; break;
-    }
-}
-
-function playerShoot(t, cx, cy){
-    if(t - game.lastShot > game.shotCd){
-        game.lastShot = t;
-        if(game.spreadBullet){
-            const angStep = 0.18;
-            const startAng = -angStep*(game.bulletCount-1)/2;
-            for(let i=0;i<game.bulletCount;i++){
-                const ang = startAng + i*angStep;
-                game.bullets.push({
-                    x:cx, y:cy, w:6, h:14,
-                    vx:Math.sin(ang)*4, vy:-game.bulletSpeed,
-                    isPlayer:true, pierce:game.pierce, track:game.trackBullet,
-                    rebound:game.reboundBullet, explode:game.explodeBullet
-                })
-            }
-        }else{
-            const offset = 12;
-            const startX = cx - (game.bulletCount-1)*offset/2;
-            for(let i=0;i<game.bulletCount;i++){
-                game.bullets.push({
-                    x:startX + i*offset, y:cy, w:6, h:14,
-                    vx:0, vy:-game.bulletSpeed, isPlayer:true, pierce:game.pierce,
-                    track:game.trackBullet, rebound:game.reboundBullet, explode:game.explodeBullet
-                })
-            }
-        }
-    }
-}
-
-function bossShoot(t){
-    if(!game.boss) return;
-    const b = game.boss;
-    const hpRatio = b.hp / b.maxHp;
-    if(hpRatio < 0.3){
-        b.phase =3;
-        b.shotCd = 350;
-    }else if(hpRatio <0.6){
-        b.phase =2;
-        b.shotCd = 500;
-    }else{
-        b.phase =1;
-        b.shotCd =700;
-    }
-    if(t - b.lastShot > b.shotCd){
-        b.lastShot = t;
-        b.pattern = (b.pattern+1)%3;
-        if(b.phase ===1){
-            for(let i=-2;i<=2;i++){
-                game.bullets.push({
-                    x: b.x + b.w/2,
-                    y: b.y + b.h,
-                    w:8,h:8, spdX:i*1.2, spdY:4, isPlayer:false, dmg:2
-                })
-            }
-        }else if(b.phase ===2){
-            for(let i=-3;i<=3;i++){
-                if(i===0) continue;
-                game.bullets.push({
-                    x: b.x + b.w/2,
-                    y: b.y + b.h,
-                    w:7,h:7, spdX:i*0.8, spdY:4.5, isPlayer:false, dmg:2
-                })
-            }
-        }else{
-            for(let i=-4;i<=4;i++){
-                game.bullets.push({
-                    x: b.x + b.w/2,
-                    y: b.y + b.h,
-                    w:6,h:6, spdX:i*1.5, spdY:5, isPlayer:false, dmg:2
-                })
-            }
-        }
-    }
-}
-
-function hit(a,b){
-    return a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y
-}
-
-// 手绘飞机
-function drawPlayer(){
-    const p = game.player;
-    ctx.save();
-    ctx.fillStyle="#0cf";
+function draw(){
+  ctx.fillStyle="#000";
+  ctx.fillRect(0,0,W,H);
+  // 玩家
+  ctx.fillStyle="#4af";
+  ctx.beginPath();
+  ctx.moveTo(player.x,player.y-16);
+  ctx.lineTo(player.x-14,player.y+14);
+  ctx.lineTo(player.x+14,player.y+14);
+  ctx.fill();
+  // 僚机
+  ctx.fillStyle="#8cf";
+  wingmen.forEach(w=>{
     ctx.beginPath();
-    ctx.moveTo(p.x+p.w/2, p.y);
-    ctx.lineTo(p.x, p.y+p.h);
-    ctx.lineTo(p.x+p.w, p.y+p.h);
-    ctx.closePath();
+    ctx.arc(player.x+w.ox,player.y+w.oy,10,0,Math.PI*2);
     ctx.fill();
-    ctx.fillStyle="#08f";
+  })
+  // 子弹
+  ctx.fillStyle="#fff";
+  bullets.forEach(b=>{
+    ctx.fillRect(b.x-3,b.y-7,6,14);
+  })
+  //敌人子弹
+  ctx.fillStyle="#f66";
+  enemyBullets.forEach(b=>{
     ctx.beginPath();
-    ctx.moveTo(p.x+p.w/2, p.y+10);
-    ctx.lineTo(p.x+6, p.y+p.h-5);
-    ctx.lineTo(p.x+p.w-6, p.y+p.h-5);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle="#ff7700";
-    ctx.beginPath();
-    ctx.arc(p.x+p.w/2, p.y+p.h+4, 4,0,Math.PI*2);
-    ctx.fill();
-    ctx.restore();
-}
-function drawWingman(wx,wy){
-    ctx.save();
-    ctx.fillStyle="#0f8";
-    ctx.beginPath();
-    ctx.moveTo(wx+20, wy);
-    ctx.lineTo(wx, wy+20);
-    ctx.lineTo(wx+40, wy+20);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
-}
-function drawEnemy(e){
-    ctx.save();
+    ctx.arc(b.x,b.y,5,0,Math.PI*2);ctx.fill();
+  })
+  //敌人
+  ctx.fillStyle="#f44";
+  enemies.forEach(e=>{
+    ctx.fillRect(e.x-e.w/2,e.y-e.h/2,e.w,e.h);
+    //血条
+    ctx.fillStyle="#333";
+    ctx.fillRect(e.x-14,e.y-e.h/2-6,28,3);
+    ctx.fillStyle="#0f0";
+    ctx.fillRect(e.x-14,e.y-e.h/2-6,28*(e.hp/e.maxHp),3);
     ctx.fillStyle="#f44";
-    ctx.beginPath();
-    ctx.arc(e.x+e.w/2, e.y+e.h/2, e.w/2,0,Math.PI*2);
-    ctx.fill();
-    ctx.fillStyle="#aa0000";
-    ctx.beginPath();
-    ctx.arc(e.x+e.w/2, e.y+e.h/2, e.w/3,0,Math.PI*2);
-    ctx.fill();
-    ctx.restore();
-}
-function drawBoss(b){
-    ctx.save();
-    ctx.fillStyle="#922";
-    ctx.fillRect(b.x,b.y,b.w,b.h);
-    ctx.fillStyle="#f33";
-    ctx.fillRect(b.x+10,b.y+10,b.w-20,b.h-20);
+  })
+  //BOSS
+  if(boss){
+    ctx.fillStyle="#f22";
+    ctx.fillRect(boss.x-boss.w/2,boss.y-boss.h/2,boss.w,boss.h);
+    ctx.fillStyle="#333";
+    ctx.fillRect(boss.x-45,boss.y-boss.h/2-10,90,6);
+    ctx.fillStyle="#f00";
+    ctx.fillRect(boss.x-45,boss.y-boss.h/2-10,90*(boss.hp/boss.maxHp),6);
+  }
+  //卡片
+  cards.forEach(c=>{
     ctx.fillStyle="#ff0";
     ctx.beginPath();
-    ctx.arc(b.x+30,b.y+25,10,0,Math.PI*2);
-    ctx.arc(b.x+b.w-30,b.y+25,10,0,Math.PI*2);
-    ctx.fill();
-    ctx.restore();
-    ctx.fillStyle="#333";
-    ctx.fillRect(b.x, b.y-12, b.w, 8);
-    ctx.fillStyle = b.phase===3?"#f0f":b.phase===2?"#fa0":"#f00";
-    ctx.fillRect(b.x, b.y-12, b.w*(b.hp/b.maxHp),8);
-    ctx.fillStyle="#fff";
-    ctx.font="12px sans-serif";
-    ctx.fillText(`阶段${b.phase}`,b.x,b.y-14);
-}
-
-function loop(timestamp){
-    if(!game.run) return;
-    requestAnimationFrame(loop);
-    if(game.pause) return;
+    ctx.arc(c.x,c.y,18,0,Math.PI*2);ctx.fill();
     ctx.fillStyle="#000";
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-
-    ctx.fillStyle="#fff";
-    game.stars.forEach(s=>{
-        s.y += s.spd;
-        if(s.y>canvas.height){
-            s.y=0; s.x=Math.random()*canvas.width;
-        }
-        ctx.beginPath();
-        ctx.arc(s.x,s.y,s.s,0,Math.PI*2);
-        ctx.fill();
-    })
-
-    game.player.x = Math.max(0, Math.min(canvas.width-game.player.w, mouseX - game.player.w/2));
-    game.player.y = Math.max(0, Math.min(canvas.height-game.player.h, mouseY - game.player.h/2));
-
-    const cx = game.player.x + game.player.w/2;
-    const cy = game.player.y;
-    if(keys[' ']) playerShoot(timestamp, cx, cy);
-
-    // 僚机跟随+射击
-    game.wingmans.forEach(w=>{
-        const wx = game.player.x + w.offsetX;
-        const wy = game.player.y + w.offsetY;
-        drawWingman(wx,wy);
-        if(keys[' '] && timestamp - game.lastShot > game.shotCd){
-            game.bullets.push({
-                x:wx+20, y:wy, w:5, h:10,
-                vx:0, vy:-game.bulletSpeed, isPlayer:true, pierce:false, track:false, rebound:false, explode:false
-            })
-        }
-    })
-
-    if(!game.boss && game.enemyCount < game.needKill && Math.random()<0.025){
-        spawnEnemy();
-    }
-    if(!game.boss && game.enemyCount >= game.needKill){
-        spawnBoss();
-    }
-
-    for(let i=game.enemies.length-1;i>=0;i--){
-        const e = game.enemies[i];
-        e.y += e.spd;
-        if(e.y>canvas.height){
-            game.enemies.splice(i,1);
-            continue;
-        }
-        if(hit(e, game.player)){
-            takeDamage(3);
-            createExplode(e.x+e.w/2,e.y+e.h/2,"#f44",15);
-            game.enemies.splice(i,1);
-        }else{
-            drawEnemy(e);
-        }
-    }
-
-    if(game.boss){
-        let b = game.boss;
-        if(b.y < 60) b.y += 1.5;
-        else {
-            b.x += b.spd * b.dir;
-            if(b.x <=0 || b.x+b.w >= canvas.width) b.dir *= -1;
-        }
-        bossShoot(timestamp);
-        drawBoss(b);
-        if(b.hp <=0){
-            game.score += 500 * game.level;
-            createExplode(b.x+b.w/2,b.y+b.h/2,"#ff0",30);
-            game.boss = null;
-            showCardSelect();
-            return;
-        }
-    }
-
-    for(let bi=game.bullets.length-1;bi>=0;bi--){
-        const bul = game.bullets[bi];
-        if(bul.isPlayer && bul.track && game.enemies.length>0){
-            let target = game.enemies[0];
-            const dx = target.x+target.w/2 - bul.x;
-            const dy = target.y+target.h/2 - bul.y;
-            const dist = Math.hypot(dx,dy);
-            if(dist>0){
-                bul.vx += (dx/dist)*0.12;
-                bul.vy += (dy/dist)*0.12;
-            }
-        }
-        bul.x += bul.vx||0;
-        bul.y += bul.vy||0;
-
-        //反弹逻辑
-        if(bul.rebound){
-            if(bul.x<0 || bul.x+bul.w>canvas.width) bul.vx *= -1;
-            if(bul.y<0) bul.vy *= -1;
-        }
-        if(bul.y < -20 || bul.y>canvas.height || bul.x<-20 || bul.x>canvas.width){
-            game.bullets.splice(bi,1);
-            continue;
-        }
-        if(bul.isPlayer){
-            for(let ei=game.enemies.length-1;ei>=0;ei--){
-                let e = game.enemies[ei];
-                if(hit(bul,e)){
-                    let dmg = 10 * game.atk;
-                    if(Math.random() < game.critRate) dmg *=2;
-                    e.hp -= dmg;
-                    if(bul.explode) createExplode(bul.x,bul.y,"#ff8800",8);
-                    if(!bul.pierce) game.bullets.splice(bi,1);
-                    if(e.hp <=0){
-                        game.score += 100;
-                        game.enemyCount ++;
-                        if(game.lifesteal>0) game.hp = Math.min(game.maxHp, game.hp+game.lifesteal);
-                        createExplode(e.x+e.w/2,e.y+e.h/2,"#f44",12);
-                        game.enemies.splice(ei,1);
-                    }
-                    break;
-                }
-            }
-            if(game.boss && hit(bul, game.boss)){
-                let dmg = 10 * game.atk;
-                if(Math.random() < game.critRate) dmg *=2;
-                game.boss.hp -= dmg;
-                if(bul.explode) createExplode(bul.x,bul.y,"#ff8800",8);
-                if(!bul.pierce) game.bullets.splice(bi,1);
-                createExplode(bul.x,bul.y,"#ff8",5);
-            }
-        }else{
-            if(hit(bul, game.player)){
-                takeDamage(bul.dmg);
-                createExplode(bul.x,bul.y,"#f84",8);
-                game.bullets.splice(bi,1);
-            }
-        }
-        ctx.fillStyle = bul.isPlayer ? "#0ff" : "#f84";
-        ctx.fillRect(bul.x, bul.y, bul.w, bul.h);
-    }
-
-    drawPlayer();
-    updateParticles();
-    drawParticles();
-
-    ctx.fillStyle="#fff";
-    ctx.font="14px sans-serif";
-    ctx.fillText(`关卡:${game.level}`,8,20);
-    ctx.fillText(`分数:${game.score}`,8,40);
-    ctx.fillText(`HP:${game.hp}/${game.maxHp}`,8,60);
-    ctx.fillText(`护盾:${game.shield.toFixed(0)}`,8,80);
-    ctx.fillText(`击杀:${game.enemyCount}/${game.needKill}`,8,100);
+    ctx.font="12px sans-serif";
+    ctx.textAlign="center";
+    ctx.fillText(c.type,c.x,c.y+4);
+  })
+  // UI
+  ctx.fillStyle="#fff";
+  ctx.font="16px sans-serif";
+  ctx.textAlign="left";
+  ctx.fillText(`波次:${wave} 分数:${score} HP:${player.hp}`,8,20);
+  ctx.fillText(`大招:${player.ultReady?"就绪":"冷却"}`,8,40);
 }
 
-function takeDamage(d){
-    d = Math.max(0, d - (game.reduceDmg||0));
-    if(game.shield >0){
-        if(game.shield >= d){
-            game.shield -=d;
-            return;
-        }else{
-            d -= game.shield;
-            game.shield =0;
-        }
-    }
-    game.hp -= d;
-    if(game.hp <=0){
-        game.hp =0;
-        game.run = false;
-        createExplode(game.player.x+game.player.w/2, game.player.y+game.player.h/2,"#0cf",25);
-        overText.innerText = `游戏结束！得分：${game.score}，到达第${game.level}关`;
-        overPanel.style.display='flex';
-    }
+let last = 0;
+function loop(t){
+  const dt = Math.min((t-last)/1000,0.05);
+  last = t;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
 }
 
-gameBox.addEventListener('mousemove', e=>{
-    const rect = canvas.getBoundingClientRect();
-    mouseX = e.clientX - rect.left;
-    mouseY = e.clientY - rect.top;
-})
-
-window.addEventListener('keydown',e=>{
-    keys[e.key] = true;
-    if((e.key === 'p' || e.key === 'P')){
-        if(cardPanel.style.display !== 'flex' && overPanel.style.display !== 'flex'){
-            game.pause = !game.pause;
-            pausePanel.style.display = game.pause ? 'flex' : 'none';
-        }
-    }
-})
-window.addEventListener('keyup',e=>keys[e.key]=false);
-
-// 存档
-function saveToTxt(){
-    const saveData = {
-        level: game.level,
-        score: game.score,
-        hp: game.hp,
-        maxHp: game.maxHp,
-        atk: game.atk,
-        shotCd: game.shotCd,
-        shield: game.shield,
-        bulletCount:game.bulletCount,
-        spreadBullet:game.spreadBullet,
-        pierce:game.pierce,
-        trackBullet:game.trackBullet,
-        reboundBullet:game.reboundBullet,
-        explodeBullet:game.explodeBullet,
-        critRate:game.critRate,
-        lifesteal:game.lifesteal,
-        bulletSpeed:game.bulletSpeed,
-        slowEnemy:game.slowEnemy,
-        wingman:game.wingman,
-        reduceDmg:game.reduceDmg,
-        enemyCount: game.enemyCount,
-        needKill: game.needKill,
-        playerX: game.player.x,
-        playerY: game.player.y
-    }
-    const str = JSON.stringify(saveData,null,2);
-    const blob = new Blob([str],{type:"text/plain"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = "飞机大战存档.txt";
-    a.click();
-    URL.revokeObjectURL(url);
-}
-
-function loadFromTxt(file){
-    const reader = new FileReader();
-    reader.onload = e=>{
-        try{
-            const data = JSON.parse(e.target.result);
-            game.level = data.level;
-            game.score = data.score;
-            game.hp = data.hp;
-            game.maxHp = data.maxHp;
-            game.atk = data.atk;
-            game.shotCd = data.shotCd;
-            game.shield = data.shield;
-            game.bulletCount = data.bulletCount||1;
-            game.spreadBullet = data.spreadBullet||false;
-            game.pierce = data.pierce||false;
-            game.trackBullet = data.trackBullet||false;
-            game.reboundBullet = data.reboundBullet||false;
-            game.explodeBullet = data.explodeBullet||false;
-            game.critRate = data.critRate||0;
-            game.lifesteal = data.lifesteal||0;
-            game.bulletSpeed = data.bulletSpeed||7;
-            game.slowEnemy = data.slowEnemy||false;
-            game.wingman = data.wingman||false;
-            game.reduceDmg = data.reduceDmg||0;
-            game.enemyCount = data.enemyCount;
-            game.needKill = data.needKill;
-            game.player.x = data.playerX;
-            game.player.y = data.playerY;
-            mouseX = game.player.x + game.player.w/2;
-            mouseY = game.player.y + game.player.h/2;
-            game.wingmans = game.wingman ? [{offsetX:-30, offsetY:20},{offsetX:30, offsetY:20}] : [];
-            game.enemies = [];
-            game.bullets = [];
-            game.boss = null;
-            game.particles = [];
-            game.run = true;
-            game.pause = false;
-            hideAllPanel();
-        }catch(err){
-            alert("存档文件损坏，读取失败！");
-        }
-    }
-    reader.readAsText(file);
-}
-
-saveBtn.onclick = saveToTxt;
-loadBtn.onclick = ()=>fileInput.click();
-fileInput.onchange = e=>{
-    if(e.target.files[0]) loadFromTxt(e.target.files[0]);
-}
-restartBtn.onclick = resetGame;
-overRestart.onclick = resetGame;
-
-resetGame();
+initWingman();
 requestAnimationFrame(loop);
 </script>
 </body>
 </html>
-
