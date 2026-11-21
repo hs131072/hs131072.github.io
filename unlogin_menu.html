@@ -6,6 +6,7 @@
 <title>Arc - 探索未来</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="assets/db.js"></script>
 <style>
 :root { --mouse-x: 50%; --mouse-y: 50%; }
 body { margin:0; padding:0; overflow-x:hidden; background:#020617; font-family:'Inter',sans-serif; cursor:none; }
@@ -373,12 +374,12 @@ body { margin:0; padding:0; overflow-x:hidden; background:#020617; font-family:'
         <div class="panel-close" data-close="game"><i class="fa-solid fa-xmark"></i></div>
         <h2 class="panel-title">游戏</h2>
         <div class="tile-grid">
-            <a href="https://hs131072.github.io/ul/g/plane1.html" class="tile">
+            <a href="ul/g/plane1.html" class="tile">
                 <span class="tile-shine"></span>
                 <i class="fa-solid fa-plane"></i>
                 <span>飞机大战</span>
             </a>
-            <a href="https://hs131072.github.io/ul/g/block1.html" class="tile">
+            <a href="ul/g/block1.html" class="tile">
                 <span class="tile-shine"></span>
                 <i class="fa-solid fa-cube"></i>
                 <span>方块跳跃</span>
@@ -425,13 +426,7 @@ body { margin:0; padding:0; overflow-x:hidden; background:#020617; font-family:'
     <div class="panel-inner">
         <div class="panel-close" data-close="mine"><i class="fa-solid fa-xmark"></i></div>
         <h2 class="panel-title">我的</h2>
-        <div class="tile-grid">
-            <a href="#" class="tile">
-                <span class="tile-shine"></span>
-                <i class="fa-solid fa-user-circle"></i>
-                <span>个人中心</span>
-            </a>
-        </div>
+        <div class="tile-grid" id="mineGrid"></div>
     </div>
 </div>
 
@@ -452,7 +447,7 @@ body { margin:0; padding:0; overflow-x:hidden; background:#020617; font-family:'
 <i class="fa-solid fa-fingerprint"></i>
 <span>登录 / 注册</span>
 </a>
-<a href="https://hs131072.github.io/unlogin_menu.html" class="liquid-btn btn-secondary magnetic-btn">
+<a href="unlogin_menu.html" class="liquid-btn btn-secondary magnetic-btn">
 <div class="btn-shine"></div>
 <span class="btn-glow"></span>
 <i class="fa-solid fa-paper-plane"></i>
@@ -635,6 +630,32 @@ buttons.forEach(btn => {
         setTimeout(() => ripple.remove(), 800);
     });
 });
+</script>
+
+<script>
+/* 我的面板：登录状态 / 最高分 / 退出 */
+(function(){
+  const grid = document.getElementById('mineGrid');
+  function esc(s){ return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+  function renderGuest(){
+    grid.innerHTML =
+      '<a href="login_page.html" class="tile"><span class="tile-shine"></span><i class="fa-solid fa-fingerprint"></i><span>登录 / 注册</span></a>'+
+      '<div class="tile"><span class="tile-shine"></span><i class="fa-solid fa-circle-info"></i><span>登录后可保存成绩与排行榜</span></div>';
+  }
+  async function renderUser(s){
+    const [bp, bb, prof] = await Promise.all([ARC_DB.getBest('plane'), ARC_DB.getBest('block'), ARC_DB.getProfile()]);
+    const coins = (prof && prof.coins) || 0;
+    grid.innerHTML =
+      '<div class="tile member-tile"><span><i class="fa-solid fa-user"></i> '+esc(s.nickname)+'</span><i class="fa-solid fa-circle-check" style="color:#34d399"></i></div>'+
+      '<div class="tile member-tile"><span>持有金币</span><b style="color:#fbbf24">⬡ '+coins+'</b></div>'+
+      '<div class="tile member-tile"><span>飞机大战 最高分</span><b style="color:#fbbf24">'+bp+'</b></div>'+
+      '<div class="tile member-tile"><span>方块跳跃 最高分</span><b style="color:#fbbf24">'+bb+'</b></div>'+
+      '<a href="javascript:void(0)" class="tile" id="mineLogout"><span class="tile-shine"></span><i class="fa-solid fa-right-from-bracket"></i><span>退出登录</span></a>';
+    document.getElementById('mineLogout').onclick = ()=>{ ARC_DB.logout(); location.href='index.html'; };
+  }
+  const s = ARC_DB.getSession();
+  if (s) renderUser(s); else renderGuest();
+})();
 </script>
 </body>
 </html>
