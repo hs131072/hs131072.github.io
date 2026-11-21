@@ -2,390 +2,678 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>弹幕射击 - 持续升级版</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>飞机大战 · Sky Striker</title>
+<script src="../../assets/db.js"></script>
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{background:#111;color:#fff;font-family:system-ui}
-canvas{display:block;margin:10px auto;background:#000;border:2px solid #444}
-#info{text-align:center;margin:8px}
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    background:#05070f;color:#e2e8f0;font-family:system-ui,"Microsoft YaHei",sans-serif;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;overflow:hidden;
+    background:radial-gradient(circle at 50% 20%,#0b1226 0%,#05070f 70%);
+  }
+  #wrap{position:relative;width:min(480px,96vw)}
+  canvas{display:block;width:100%;height:auto;background:#02040a;border:2px solid #1e293b;border-radius:14px;box-shadow:0 20px 60px -20px rgba(34,211,238,.35)}
+  #hud{position:absolute;top:0;left:0;right:0;padding:12px 14px;display:flex;justify-content:space-between;pointer-events:none;font-size:14px;text-shadow:0 1px 3px #000}
+  #hud .left,#hud .right{display:flex;flex-direction:column;gap:3px}
+  #hud .right{text-align:right}
+  .hearts{color:#f87171;letter-spacing:2px}
+  .tag{font-size:11px;color:#94a3b8;letter-spacing:.12em}
+  .coin{color:#fbbf24}
+  .overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;border-radius:14px;background:rgba(2,6,16,.86);backdrop-filter:blur(6px);text-align:center;padding:22px;z-index:20;overflow-y:auto}
+  .overlay.hidden{display:none}
+  .title{font-size:32px;font-weight:900;letter-spacing:.05em;background:linear-gradient(135deg,#67e8f9,#38bdf8,#818cf8);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:#94a3b8;font-size:13px;line-height:1.8;max-width:330px}
+  .btn{pointer-events:auto;cursor:pointer;border:1px solid rgba(103,232,249,.4);background:linear-gradient(135deg,rgba(56,189,248,.18),rgba(129,140,248,.18));color:#fff;font-weight:700;font-size:15px;padding:12px 26px;border-radius:14px;transition:.25s}
+  .btn:hover{transform:translateY(-2px);box-shadow:0 12px 30px -10px rgba(56,189,248,.6)}
+  .btn.ghost{border-color:rgba(148,163,184,.3);background:rgba(255,255,255,.04)}
+  .btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+  .row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+  .stat{font-size:15px;color:#e2e8f0}
+  .stat b{color:#fbbf24}
+  table.lb{border-collapse:collapse;font-size:13px;min-width:260px}
+  table.lb td,table.lb th{padding:5px 12px}
+  table.lb th{color:#94a3b8;font-weight:600;border-bottom:1px solid #1e293b}
+  table.lb td:first-child{color:#94a3b8}
+  table.lb tr.me td{color:#67e8f9}
+  .hint{font-size:11px;color:#64748b}
+  #toast{position:absolute;top:64px;left:50%;transform:translateX(-50%);background:rgba(15,23,42,.92);border:1px solid #334155;border-radius:10px;padding:8px 14px;font-size:13px;z-index:30;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
+  /* 机库 */
+  .hangar-head{width:100%;display:flex;justify-content:space-between;align-items:center}
+  .hangar-head .coins{font-size:18px;font-weight:800;color:#fbbf24}
+  .panel-label{font-size:12px;color:#94a3b8;letter-spacing:.15em;margin-top:6px}
+  .plane-list{width:100%;display:flex;flex-direction:column;gap:10px}
+  .plane-card{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid #1e293b;border-radius:16px;background:rgba(255,255,255,.03);text-align:left}
+  .plane-card.active{border-color:#67e8f9;background:rgba(103,232,249,.08)}
+  .plane-swatch{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:22px;flex:none}
+  .plane-info{flex:1;min-width:0}
+  .plane-info .nm{font-weight:700;font-size:15px}
+  .plane-info .ds{font-size:11px;color:#94a3b8;margin-top:2px}
+  .plane-info .st{font-size:11px;color:#67e8f9;margin-top:3px}
+  .mini-btn{pointer-events:auto;cursor:pointer;border:1px solid rgba(103,232,249,.4);background:rgba(56,189,248,.15);color:#fff;font-weight:700;font-size:12px;padding:8px 12px;border-radius:10px;white-space:nowrap}
+  .mini-btn.buy{border-color:rgba(251,191,36,.5);background:rgba(251,191,36,.15);color:#fbbf24}
+  .mini-btn:disabled{opacity:.35;cursor:not-allowed}
+  .card-list{width:100%;display:flex;flex-direction:column;gap:10px}
+  .card-row{display:flex;align-items:center;gap:12px;padding:10px 14px;border:1px solid #1e293b;border-radius:16px;background:rgba(255,255,255,.03)}
+  .card-row .ic{font-size:20px;width:30px;text-align:center}
+  .card-row .ci{flex:1}
+  .card-row .ci .nm{font-weight:700;font-size:14px}
+  .card-row .ci .ds{font-size:11px;color:#94a3b8}
+  .pips{display:flex;gap:4px;margin-top:4px}
+  .pip{width:14px;height:6px;border-radius:3px;background:#1e293b}
+  .pip.on{background:#34d399}
 </style>
 </head>
 <body>
-<div id="info">WASD移动｜空格射击｜Q大招｜拾取卡片｜波次越高敌人越肉、刷新越快</div>
-<canvas id="game" width="480" height="720"></canvas>
+<div id="wrap">
+  <canvas id="game" width="480" height="720"></canvas>
+  <div id="hud">
+    <div class="left">
+      <div class="hearts" id="hp">❤❤❤❤❤</div>
+      <div class="tag" id="perks">强化：无</div>
+    </div>
+    <div class="right">
+      <div>分数 <b id="score">0</b> · <span class="coin">⬡ <b id="runCoins">0</b></span></div>
+      <div class="tag">波次 <span id="wave">1</span> · 最高 <span id="best">0</span></div>
+    </div>
+  </div>
+  <div id="toast"></div>
+
+  <div class="overlay" id="menu">
+    <div class="title">SKY STRIKER</div>
+    <div class="sub">WASD / 方向键移动 · 自动开火 · Q 大招 · P 暂停 · M 静音<br>击毁敌机赢取金币，在机库购买战机、强化卡片。</div>
+    <div class="stat">历史最高 <b id="menuBest">0</b> · 持有金币 <b class="coin" id="menuCoins">0</b></div>
+    <div class="row">
+      <button class="btn" id="btnStart">开始作战</button>
+      <button class="btn ghost" id="btnHangar">机库 / 升级</button>
+      <button class="btn ghost" id="btnMenuBack">返回主页</button>
+    </div>
+    <div class="hint">触屏：拖动移动，自动开火</div>
+  </div>
+
+  <div class="overlay hidden" id="hangar">
+    <div class="hangar-head">
+      <div class="title" style="font-size:22px">机库 · 升级</div>
+      <div class="coins">⬡ <span id="hangarCoins">0</span></div>
+    </div>
+    <div class="panel-label">战机</div>
+    <div class="plane-list" id="planeList"></div>
+    <div class="panel-label">强化卡片（永久生效）</div>
+    <div class="card-list" id="cardList"></div>
+    <div class="row">
+      <button class="btn ghost" id="btnHangarBack">返回</button>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="pause">
+    <div class="title" style="font-size:26px">已暂停</div>
+    <div class="row">
+      <button class="btn" id="btnResume">继续</button>
+      <button class="btn ghost" id="btnRestartP">重新开始</button>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="over">
+    <div class="title" style="font-size:26px;color:#f87171">战机坠毁</div>
+    <div class="stat">本局得分 <b id="finalScore">0</b>　最高 <b id="finalBest">0</b></div>
+    <div class="stat coin">获得金币 <b id="finalCoins">0</b></div>
+    <div id="lbWrap"></div>
+    <div class="row">
+      <button class="btn" id="btnRetry">再来一局</button>
+      <button class="btn ghost" id="btnHangar2">机库 / 升级</button>
+      <button class="btn ghost" id="btnBack">返回主页</button>
+    </div>
+  </div>
+</div>
 
 <script>
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
-const W = canvas.width;
-const H = canvas.height;
+const W = canvas.width, H = canvas.height;
 
-// 游戏状态
-let player = {x:W/2,y:H-80,w:32,h:32,speed:5,hp:5,ultCd:0,ultReady:true};
-let bullets = [];
-let enemyBullets = [];
-let enemies = [];
-let wingmen = [];
-let cards = [];
-let particles = [];
-let wave = 1;
-let spawnTimer = 0;
-let spawnInterval = 1.8;
-let enemiesPerWave = 6;
-let spawnedThisWave = 0;
-let waveDelay = 0;
-let boss = null;
-let score = 0;
-let keys = {};
+/* ---------------- 战机 / 卡片目录 ---------------- */
+const PLANES = {
+  starter: { name:"雏鹰", price:0,    desc:"均衡型战机，可靠的老伙计", hp:5, speed:5.0, fireRate:1.0,  dmg:1.0, bullets:1, color:"#38bdf8", accent:"#e0f2fe" },
+  falcon:  { name:"疾风", price:800,  desc:"轻快灵活，射速显著提升",   hp:4, speed:6.2, fireRate:1.35, dmg:1.0, bullets:1, color:"#34d399", accent:"#d1fae5" },
+  phoenix: { name:"烈焰", price:2000, desc:"三向散射，覆盖整片空域", hp:5, speed:5.0, fireRate:1.0,  dmg:1.0, bullets:3, color:"#f97316", accent:"#fed7aa" },
+  titan:   { name:"巨盾", price:3500, desc:"重甲高生命，火力沉稳",   hp:8, speed:4.2, fireRate:0.9,  dmg:1.3, bullets:1, color:"#a78bfa", accent:"#ede9fe" }
+};
+const CARDS = {
+  wpn:    { name:"火力核心", desc:"每级 +35% 子弹伤害", max:5, base:120, icon:"💥" },
+  shield: { name:"装甲护盾", desc:"每级 +1 生命上限",   max:5, base:120, icon:"🛡" },
+  wing:   { name:"僚机系统", desc:"解锁并强化伴随僚机", max:3, base:200, icon:"✈" },
+  engine: { name:"引擎调校", desc:"每级提升移速与射速", max:5, base:100, icon:"⚙" }
+};
+function cardCost(cardKey, level){ const c=CARDS[cardKey]; return Math.round(c.base*(level+1)*0.9); }
 
-// 卡片效果
-let perks = {
-  pierce:false,
-  bulletPlus:false,
-  fireRate:1,
-  damage:1
+/* ---------------- 音效（WebAudio，懒加载） ---------------- */
+const AudioSys = {
+  ctx:null, muted:false,
+  ensure(){ if(!this.ctx) this.ctx=new (window.AudioContext||window.webkitAudioContext)(); if(this.ctx.state==='suspended') this.ctx.resume(); },
+  tone(freq,dur,type='square',vol=0.12,slide=0){ if(this.muted)return; this.ensure(); const o=this.ctx.createOscillator(),g=this.ctx.createGain(); o.type=type; o.frequency.value=freq; if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(40,freq+slide),this.ctx.currentTime+dur); g.gain.setValueAtTime(vol,this.ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.001,this.ctx.currentTime+dur); o.connect(g); g.connect(this.ctx.destination); o.start(); o.stop(this.ctx.currentTime+dur); },
+  noise(dur=0.2,vol=0.2){ if(this.muted)return; this.ensure(); const n=Math.floor(this.ctx.sampleRate*dur); const buf=this.ctx.createBuffer(1,n,this.ctx.sampleRate); const d=buf.getChannelData(0); for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*(1-i/n); const src=this.ctx.createBufferSource(); src.buffer=buf; const g=this.ctx.createGain(); g.gain.value=vol; src.connect(g); g.connect(this.ctx.destination); src.start(); },
+  shoot(){ this.tone(760,.06,'square',.06,-260); },
+  hit(){ this.tone(240,.07,'sawtooth',.1,-80); },
+  boom(){ this.noise(.25,.22); this.tone(120,.2,'sawtooth',.12,-60); },
+  pickup(){ this.tone(620,.12,'sine',.14,320); },
+  hurt(){ this.tone(150,.22,'sawtooth',.2,-60); },
+  boss(){ this.tone(110,.5,'sawtooth',.18,50); },
+  coin(){ this.tone(880,.09,'sine',.12,220); },
+  over(){ this.tone(300,.6,'sawtooth',.18,-220); this.noise(.5,.15); }
 };
 
-// 输入监听
-document.addEventListener('keydown',e=>{
+/* ---------------- 档案 / 派生属性 ---------------- */
+function defaultProfile(){ return { coins:0, currentPlane:'starter', ownedPlanes:['starter'], cards:{wpn:0,shield:0,wing:0,engine:0}, best:{plane:0,block:0} }; }
+let profile = defaultProfile(); // 来自 ARC_DB.getProfile()，先给默认值避免空档案崩溃
+let stats = null;        // 当前战机+卡片派生属性
+const session = () => ARC_DB.getSession();
+
+function deriveStats(){
+  const plane = PLANES[profile.currentPlane] || PLANES.starter;
+  const c = profile.cards;
+  return {
+    plane,
+    maxHp: plane.hp + (c.shield||0),
+    speed: plane.speed + c.engine*0.25,
+    fireRate: plane.fireRate + c.engine*0.08,
+    dmg: plane.dmg + c.wpn*0.35,
+    wing: c.wing||0,
+    bullets: plane.bullets
+  };
+}
+
+/* ---------------- 游戏状态 ---------------- */
+const G = { state:'menu', score:0, best:0, wave:1, combo:0, comboTimer:0, shake:0, time:0, runCoins:0, kills:0 };
+let player, bullets, eBullets, enemies, wingmen, cards, particles, stars, floaters;
+let spawnTimer, spawnInterval, perWave, spawned, waveDelay, boss;
+let keys={}, shootTimer=0, touch=null;
+
+function resetRun(){
+  stats = deriveStats();
+  player = { x:W/2, y:H-90, w:32, h:32, speed:stats.speed, hp:stats.maxHp, maxHp:stats.maxHp,
+    inv:0, shield:0, ultReady:true, ultCd:0, tilt:0 };
+  bullets=[]; eBullets=[]; enemies=[]; wingmen=[]; cards=[]; particles=[]; floaters=[];
+  boss=null; spawnTimer=0; spawnInterval=1.7; perWave=6; spawned=0; waveDelay=1;
+  G.score=0; G.wave=1; G.combo=0; G.comboTimer=0; G.shake=0; G.runCoins=0; G.kills=0;
+  perks = { pierce:false, spread:false };
+  initStars();
+  initWingmen();
+}
+let perks;
+function initStars(){ stars=[]; for(let i=0;i<70;i++) stars.push({x:Math.random()*W,y:Math.random()*H,s:Math.random()*2+0.5,v:Math.random()*1.2+0.3}); }
+
+/* ---------------- 输入 ---------------- */
+document.addEventListener('keydown', e=>{
   keys[e.code]=true;
-  if(e.code==='KeyQ' && player.ultReady) doUltimate();
+  if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
+  if(e.code==='KeyM'){ AudioSys.muted=!AudioSys.muted; toast(AudioSys.muted?'已静音':'声音开启'); }
+  if((e.code==='KeyP'||e.code==='Escape') && (G.state==='playing'||G.state==='paused')) togglePause();
+  if(e.code==='KeyQ' && G.state==='playing') doBomb();
 });
-document.addEventListener('keyup',e=>keys[e.code]=false);
-canvas.onclick = (ev)=>{
-  const r = canvas.getBoundingClientRect();
-  const mx = ev.clientX - r.left;
-  const my = ev.clientY - r.top;
-  for(let i=cards.length-1;i>=0;i--){
-    const c = cards[i];
-    const d = Math.hypot(mx-c.x,my-c.y);
-    if(d<22){
-      applyCard(c.type);
-      cards.splice(i,1);
-    }
-  }
+document.addEventListener('keyup', e=>keys[e.code]=false);
+function canvasPos(ev){ const r=canvas.getBoundingClientRect(); const p=ev.touches?ev.touches[0]:ev; return {x:(p.clientX-r.left)*W/r.width,y:(p.clientY-r.top)*H/r.height}; }
+canvas.addEventListener('mousedown', e=>{ if(G.state==='playing') touch=canvasPos(e); });
+canvas.addEventListener('mousemove', e=>{ if(touch) touch=canvasPos(e); });
+window.addEventListener('mouseup', ()=>touch=null);
+canvas.addEventListener('touchstart', e=>{ e.preventDefault(); touch=canvasPos(e); },{passive:false});
+canvas.addEventListener('touchmove', e=>{ e.preventDefault(); touch=canvasPos(e); },{passive:false});
+canvas.addEventListener('touchend', ()=>touch=null);
+
+/* ---------------- 僚机 ---------------- */
+function initWingmen(){
+  wingmen=[];
+  const n=stats.wing;
+  if(n>=1) wingmen.push({ox:-38,oy:12,st:0});
+  if(n>=2) wingmen.push({ox:38,oy:12,st:0});
+  if(n>=3){ wingmen.push({ox:-24,oy:30,st:0.2}); wingmen.push({ox:24,oy:30,st:0.2}); }
 }
 
-// 玩家射击
-let shootTimer = 0;
-function shoot(){
-  shootTimer += 0.016;
-  const fr = 0.2 / perks.fireRate;
-  if(shootTimer<fr) return;
-  shootTimer=0;
-  const b = newBullet(player.x,player.y-20,0,-7,perks.pierce,perks.damage);
-  bullets.push(b);
-  if(perks.bulletPlus){
-    bullets.push(newBullet(player.x-12,player.y-20,-0.1,-7,perks.pierce,perks.damage));
-    bullets.push(newBullet(player.x+12,player.y-20,0.1,-7,perks.pierce,perks.damage));
-  }
-}
-
-function newBullet(x,y,ax,ay,pierce=false,dmg=1){
-  return {x,y,vx:ax,vy:ay,pierce,hitSet:new Set(),dmg,life:3};
-}
-
-// 僚机初始化
-function initWingman(){
-  wingmen = [
-    {ox:-35,oy:10,shootT:0},
-    {ox:35,oy:10,shootT:0}
-  ];
-}
-
-function wingmanShoot(w){
-  w.shootT +=0.016;
-  if(w.shootT<0.35) return;
-  w.shootT=0;
-  const bx = player.x + w.ox;
-  const by = player.y + w.oy -15;
-  bullets.push(newBullet(bx,by,0,-6,perks.pierce,perks.damage));
-}
-
-// 大招
-function doUltimate(){
-  if(!player.ultReady) return;
-  player.ultReady = false;
-  player.ultCd = 8;
-  // 清小怪，打BOSS
-  enemies.forEach(e=>e.hp=0);
-  if(boss) boss.hp -= 40;
-  // 短暂无敌
-  player.inv = 1.2;
-}
-
-// 卡片
+/* ---------------- 道具卡片（局内掉落） ---------------- */
+const PERK_DEFS = {
+  pierce:{label:'穿透',color:'#f472b6'}, spread:{label:'三向',color:'#fbbf24'},
+  shield:{label:'护盾',color:'#38bdf8'}, life:{label:'生命',color:'#fb7185'}, bomb:{label:'清屏雷',color:'#e2e8f0'}
+};
 function applyCard(type){
+  AudioSys.pickup();
   switch(type){
     case 'pierce': perks.pierce=true; break;
-    case 'bulletPlus': perks.bulletPlus=true; break;
-    case 'fireRate': perks.fireRate +=0.3; break;
-    case 'damage': perks.damage +=0.4; break;
+    case 'spread': perks.spread=true; break;
+    case 'shield': player.shield=Math.min(3,player.shield+1); break;
+    case 'life': player.hp=Math.min(player.maxHp,player.hp+1); break;
+    case 'bomb': doBomb(); break;
   }
+  updatePerkHud();
 }
-function spawnCard(x,y){
-  const types = ['pierce','bulletPlus','fireRate','damage'];
-  cards.push({x,y,type:types[Math.floor(Math.random()*types.length)],life:8});
+function updatePerkHud(){
+  const list=[];
+  if(perks.pierce) list.push('穿透');
+  if(perks.spread) list.push('三向');
+  if(player.shield>0) list.push('护盾×'+player.shield);
+  document.getElementById('perks').textContent='强化：'+(list.length?list.join(' · '):'无');
 }
 
-// 敌人
+/* ---------------- 射击 ---------------- */
+function newBullet(x,y,vx,vy,pierce,dmg){ return {x,y,vx,vy,pierce,hit:new Set(),dmg,life:3}; }
+function shoot(){
+  shootTimer+=1/60;
+  const fr=0.18/stats.fireRate;
+  if(shootTimer<fr) return;
+  shootTimer=0;
+  const dmg=stats.dmg;
+  const n=stats.bullets;
+  if(n===1){ bullets.push(newBullet(player.x,player.y-18,0,-7.5,perks.pierce,dmg)); }
+  else if(n===3){
+    bullets.push(newBullet(player.x,player.y-18,0,-7.5,perks.pierce,dmg));
+    bullets.push(newBullet(player.x-12,player.y-14,-1.3,-7,perks.pierce,dmg));
+    bullets.push(newBullet(player.x+12,player.y-14,1.3,-7,perks.pierce,dmg));
+  }
+  if(perks.spread){
+    bullets.push(newBullet(player.x-14,player.y-12,-1.8,-6.6,perks.pierce,dmg));
+    bullets.push(newBullet(player.x+14,player.y-12,1.8,-6.6,perks.pierce,dmg));
+  }
+  AudioSys.shoot();
+}
+function wingmanFire(w){
+  w.st+=1/60; if(w.st<0.32) return; w.st=0;
+  bullets.push(newBullet(player.x+w.ox,player.y+w.oy-12,0,-6.5,perks.pierce,stats.dmg*0.8));
+}
+
+/* ---------------- 大招 / 清屏雷 ---------------- */
+function doBomb(){
+  if(!player.ultReady) return;
+  player.ultReady=false; player.ultCd=8; player.inv=Math.max(player.inv,1.2);
+  enemies.forEach(e=>{ spawnBoom(e.x,e.y,'#fca5a5'); e.hp=0; });
+  if(boss) boss.hp-=40;
+  eBullets.forEach(b=>spawnBoom(b.x,b.y,'#93c5fd'));
+  eBullets=[];
+  G.shake=14; AudioSys.boom();
+}
+
+/* ---------------- 敌机 ---------------- */
 function spawnEnemy(){
-  const side = Math.random();
-  let kind = 0;
-  if(side<0.4) kind=0; //普通
-  else if(side<0.7) kind=1; //高速
-  else kind=2; //射击怪
-  const hpScale = Math.pow(1.15, wave-1);
-  const baseHp = Math.round(3*hpScale);
-  const ex = 40 + Math.random()*(W-80);
-  const ey = -20;
-  let spd = 1.8;
-  let canShoot = false;
-  if(kind===1) spd *=2.2;
-  if(kind===2) canShoot=true;
-  enemies.push({
-    x:ex,y:ey,w:28,h:28,hp:baseHp,maxHp:baseHp,speed:spd,canShoot,shootT:0
-  });
+  const roll=Math.random(); let kind='grunt';
+  if(roll<0.38) kind='grunt'; else if(roll<0.62) kind='rusher';
+  else if(roll<0.85) kind='shooter'; else kind='tank';
+  const scale=Math.pow(1.16,G.wave-1);
+  const cfg={
+    grunt:  {hp:3, spd:1.7, w:28,h:28, score:10, color:'#f87171'},
+    rusher: {hp:2, spd:3.4, w:24,h:24, score:15, color:'#fb923c'},
+    shooter:{hp:4, spd:1.2, w:30,h:30, score:20, color:'#c084fc'},
+    tank:   {hp:12,spd:0.8, w:38,h:34, score:40, color:'#ef4444'}
+  }[kind];
+  const hp=Math.round(cfg.hp*scale);
+  enemies.push({kind,x:40+Math.random()*(W-80),y:-30,w:cfg.w,h:cfg.h,hp,maxHp:hp,spd:cfg.spd,score:cfg.score,color:cfg.color,shootT:Math.random()*2,t:Math.random()*Math.PI*2});
 }
-
 function spawnBoss(){
-  boss = {
-    x:W/2,y:-60,w:90,h:70,hp:120*wave,maxHp:120*wave,phase:0,shootT:0
-  }
+  const hp=140+G.wave*30;
+  boss={x:W/2,y:-70,w:96,h:72,hp,maxHp:hp,phase:0,shootT:0,entering:true};
+  AudioSys.boss();
 }
 
-// 更新BOSS弹幕（修复不动问题，持续移动弹幕）
-function bossUpdate(dt){
-  if(!boss) return;
-  boss.shootT += dt;
-  if(boss.shootT>0.4){
-    boss.shootT=0;
-    const ang = Math.PI*2*Math.random();
-    for(let i=0;i<8;i++){
-      const a = Math.PI*2/8*i + boss.phase*0.25;
-      enemyBullets.push({
-        x:boss.x,y:boss.y+30,
-        vx:Math.cos(a)*3.2,
-        vy:Math.sin(a)*3.2,
-        life:5
-      })
-    }
-    boss.phase++;
-  }
-  if(boss.y<120) boss.y += 1.2;
-  if(boss.hp<=0){
-    spawnCard(boss.x,boss.y);
-    score += 500;
-    boss=null;
-    wave++;
-    spawnInterval *=0.92; //刷新加速
-    enemiesPerWave +=2;
-    spawnedThisWave=0;
-    waveDelay=2.5;
-  }
+/* ---------------- 粒子 / 漂浮文字 ---------------- */
+function spawnBoom(x,y,color){
+  for(let i=0;i<12;i++){ const a=Math.random()*Math.PI*2,v=1+Math.random()*3; particles.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:0.5+Math.random()*0.3,color,r:2+Math.random()*2}); }
 }
+function spawnFloater(x,y,text,color){ floaters.push({x,y,text,color,life:0.9}); }
 
-// 碰撞检测
-function rectHit(a,b,aw,ah,bw,bh){
-  return a.x-aw/2 < b.x+bw/2 && a.x+aw/2 > b.x-bw/2 &&
-         a.y-ah/2 < b.y+bh/2 && a.y+ah/2 > b.y-bh/2;
-}
+function hit(a,b,aw,ah,bw,bh){ return a.x-aw/2<b.x+bw/2 && a.x+aw/2>b.x-bw/2 && a.y-ah/2<b.y+bh/2 && a.y+ah/2>b.y-bh/2; }
 
+/* ---------------- 更新 ---------------- */
 function update(dt){
-  // 玩家移动
+  G.time+=dt;
   let mx=0,my=0;
-  if(keys['KeyA']) mx-=1; if(keys['KeyD']) mx+=1;
-  if(keys['KeyW']) my-=1; if(keys['KeyS']) my+=1;
-  const len = Math.hypot(mx,my);
-  if(len>0){mx/=len;my/=len;}
-  player.x += mx*player.speed;
-  player.y += my*player.speed;
-  player.x = Math.max(16,Math.min(W-16,player.x));
-  player.y = Math.max(16,Math.min(H-16,player.y));
+  if(keys['KeyA']||keys['ArrowLeft']) mx-=1;
+  if(keys['KeyD']||keys['ArrowRight']) mx+=1;
+  if(keys['KeyW']||keys['ArrowUp']) my-=1;
+  if(keys['KeyS']||keys['ArrowDown']) my+=1;
+  if(touch){ const dx=touch.x-player.x,dy=touch.y-player.y; if(Math.hypot(dx,dy)>6){mx=dx/30;my=dy/30;} }
+  const len=Math.hypot(mx,my); if(len>1){mx/=len;my/=len;}
+  player.x=Math.max(18,Math.min(W-18,player.x+mx*player.speed));
+  player.y=Math.max(18,Math.min(H-18,player.y+my*player.speed));
+  player.tilt+=((mx*0.35)-player.tilt)*0.2;
 
-  if(keys['Space']) shoot();
-
-  // 大招冷却
-  if(player.ultCd>0){
-    player.ultCd -= dt;
-    if(player.ultCd<=0) player.ultReady=true;
-  }
+  if(keys['Space']||touch) shoot();
+  if(player.ultCd>0){ player.ultCd-=dt; if(player.ultCd<=0) player.ultReady=true; }
   if(player.inv>0) player.inv-=dt;
+  if(G.comboTimer>0){ G.comboTimer-=dt; if(G.comboTimer<=0) G.combo=0; }
+  if(G.shake>0) G.shake-=dt*30;
 
-  // 僚机
-  wingmen.forEach(w=>{
-    wingmanShoot(w);
-    w.x = player.x + w.ox;
-    w.y = player.y + w.oy;
-  })
+  wingmen.forEach(w=>{ wingmanFire(w); w.x=player.x+w.ox; w.y=player.y+w.oy; });
 
-  // 子弹更新
   for(let i=bullets.length-1;i>=0;i--){
-    const b = bullets[i];
-    b.x += b.vx; b.y += b.vy; b.life -= dt;
-    if(b.life<=0 || b.y<-10 || b.y>H+10){bullets.splice(i,1);continue;}
-    // 和敌人碰撞
+    const b=bullets[i]; b.x+=b.vx; b.y+=b.vy; b.life-=dt;
+    if(b.life<=0||b.y<-20||b.x<-20||b.x>W+20){ bullets.splice(i,1); continue; }
     for(let j=enemies.length-1;j>=0;j--){
-      const e = enemies[j];
-      if(rectHit(b,e,8,14,e.w,e.h)){
-        if(b.hitSet.has(e)) continue;
-        b.hitSet.add(e);
-        e.hp -= b.dmg;
-        if(e.hp<=0){
-          spawnCard(e.x,e.y);
-          score +=10;
-          enemies.splice(j,1);
-        }
-        if(!b.pierce){bullets.splice(i,1);break;}
+      const e=enemies[j];
+      if(hit(b,e,8,14,e.w,e.h)){
+        if(b.hit.has(e)) continue;
+        b.hit.add(e); e.hp-=b.dmg; AudioSys.hit();
+        if(e.hp<=0) killEnemy(e,j);
+        if(!b.pierce){ bullets.splice(i,1); break; }
       }
     }
-    // BOSS碰撞
-    if(boss && rectHit(b,boss,8,14,boss.w,boss.h)){
-      if(b.hitSet.has(boss)) continue;
-      b.hitSet.add(boss);
-      boss.hp -= b.dmg;
-      if(!b.pierce){bullets.splice(i,1);break;}
+    if(boss && hit(b,boss,8,14,boss.w,boss.h)){
+      if(!b.hit.has(boss)){ b.hit.add(boss); boss.hp-=b.dmg; }
+      if(!b.pierce){ bullets.splice(i,1); break; }
     }
   }
 
-  // 敌人子弹
-  for(let i=enemyBullets.length-1;i>=0;i--){
-    const eb = enemyBullets[i];
-    eb.x += eb.vx; eb.y += eb.vy; eb.life -= dt;
-    if(eb.life<=0 || eb.y>H+10 || eb.x<0||eb.x>W){enemyBullets.splice(i,1);continue;}
-    if(player.inv<=0 && rectHit(eb,player,10,10,player.w,player.h)){
-      player.hp--;
-      player.inv=1;
-      enemyBullets.splice(i,1);
-    }
+  for(let i=eBullets.length-1;i>=0;i--){
+    const eb=eBullets[i]; eb.x+=eb.vx; eb.y+=eb.vy; eb.life-=dt;
+    if(eb.life<=0||eb.y>H+20||eb.x<-10||eb.x>W+10){ eBullets.splice(i,1); continue; }
+    if(player.inv<=0 && hit(eb,player,10,10,player.w,player.h)){ eBullets.splice(i,1); hurtPlayer(); }
   }
 
-  // 敌人更新
   for(let i=enemies.length-1;i>=0;i--){
-    const e = enemies[i];
-    const dx = player.x - e.x;
-    const dy = player.y - e.y;
-    const d = Math.hypot(dx,dy);
-    if(d>0){e.x += dx/d*e.speed; e.y += dy/d*e.speed;}
-    if(e.canShoot){
-      e.shootT += dt;
-      if(e.shootT>2.2){
-        e.shootT=0;
-        const a = Math.atan2(dy,dx);
-        enemyBullets.push({x:e.x,y:e.y, vx:Math.cos(a)*2.8, vy:Math.sin(a)*2.8, life:4})
-      }
-    }
-    if(e.y>H+40) enemies.splice(i,1);
+    const e=enemies[i]; e.t+=dt;
+    const dx=player.x-e.x, dy=player.y-e.y, d=Math.hypot(dx,dy)||1;
+    if(e.kind==='rusher'){ e.x+=dx/d*e.spd; e.y+=dy/d*e.spd; }
+    else if(e.kind==='shooter'){ e.y+=e.spd*0.6; e.x+=Math.sin(e.t*1.5)*0.8; e.shootT+=dt;
+      if(e.shootT>2.1){ e.shootT=0; const a=Math.atan2(dy,dx); eBullets.push({x:e.x,y:e.y+10,vx:Math.cos(a)*2.6,vy:Math.sin(a)*2.6,life:4}); }
+    } else { e.y+=e.spd; e.x+=Math.sin(e.t*2)*0.6; }
+    if(e.y>H+40){ enemies.splice(i,1); continue; }
+    if(player.inv<=0 && hit(e,player,e.w,e.h,player.w,player.h)){ killEnemy(e,i,true); hurtPlayer(); }
   }
 
-  bossUpdate(dt);
+  updateBoss(dt);
 
-  // 波次生成
-  waveDelay -= dt;
+  waveDelay-=dt;
   if(waveDelay<=0){
-    spawnTimer += dt;
-    if(spawnTimer>spawnInterval && spawnedThisWave < enemiesPerWave){
-      spawnTimer=0;
-      spawnEnemy();
-      spawnedThisWave++;
-    }
-    if(spawnedThisWave >= enemiesPerWave && !boss && enemies.length===0){
-      if(wave%5===0){
-        spawnBoss();
-      }else{
-        wave++;
-        spawnInterval *=0.92;
-        enemiesPerWave +=2;
-        spawnedThisWave=0;
-        waveDelay=2;
-      }
+    spawnTimer+=dt;
+    if(spawnTimer>spawnInterval && spawned<perWave){ spawnTimer=0; spawnEnemy(); spawned++; }
+    if(spawned>=perWave && !boss && enemies.length===0){
+      if(G.wave%5===0) spawnBoss(); else nextWave();
     }
   }
 
-  // 卡片超时
-  for(let i=cards.length-1;i>=0;i--){
-    cards[i].life -= dt;
-    if(cards[i].life<=0) cards.splice(i,1);
+  for(let i=cards.length-1;i>=0;i--){ cards[i].life-=dt; if(cards[i].life<=0) cards.splice(i,1); }
+  for(let i=particles.length-1;i>=0;i--){ const p=particles[i]; p.x+=p.vx; p.y+=p.vy; p.vx*=0.96; p.vy*=0.96; p.life-=dt; if(p.life<=0) particles.splice(i,1); }
+  for(let i=floaters.length-1;i>=0;i--){ const f=floaters[i]; f.y-=0.8; f.life-=dt; if(f.life<=0) floaters.splice(i,1); }
+  stars.forEach(s=>{ s.y+=s.v; if(s.y>H){s.y=0;s.x=Math.random()*W;} });
+}
+
+function nextWave(){ G.wave++; spawnInterval*=0.93; perWave+=2; spawned=0; waveDelay=2; toast('第 '+G.wave+' 波'); }
+
+function killEnemy(e,idx,noScore=false){
+  spawnBoom(e.x,e.y,e.color); AudioSys.boom();
+  if(!noScore){
+    G.combo++; G.comboTimer=2; G.kills++;
+    const mult=1+Math.min(G.combo,20)*0.1;
+    const gained=Math.round(e.score*mult);
+    G.score+=gained;
+    const coin=2+Math.floor(e.score/10);
+    G.runCoins+=coin;
+    spawnFloater(e.x,e.y,'+'+gained,'#e2e8f0');
+  }
+  enemies.splice(idx,1);
+  if(Math.random()<0.18) dropCard(e.x,e.y);
+}
+function dropCard(x,y){
+  const types=Object.keys(PERK_DEFS);
+  const type=types[Math.floor(Math.random()*types.length)];
+  cards.push({x,y,type,life:8,t:0});
+}
+function hurtPlayer(){
+  if(player.shield>0){ player.shield--; player.inv=1; AudioSys.hurt(); spawnBoom(player.x,player.y,'#38bdf8'); updatePerkHud(); return; }
+  player.hp--; player.inv=1.3; G.shake=10; AudioSys.hurt();
+  spawnBoom(player.x,player.y,'#f87171');
+  if(player.hp<=0) gameOver();
+}
+function updateBoss(dt){
+  if(!boss) return;
+  if(boss.entering){ if(boss.y<120) boss.y+=1.4; else boss.entering=false; return; }
+  boss.shootT+=dt;
+  boss.x+=Math.sin(G.time*0.8)*1.2;
+  if(boss.shootT>0.42){
+    boss.shootT=0; boss.phase++;
+    const n=8+Math.min(8,Math.floor(G.wave/5));
+    for(let i=0;i<n;i++){ const a=Math.PI*2/n*i+boss.phase*0.22; eBullets.push({x:boss.x,y:boss.y+24,vx:Math.cos(a)*3,vy:Math.sin(a)*3,life:5}); }
+    if(boss.hp<boss.maxHp*0.5 && boss.phase%2===0){ const a=Math.atan2(player.y-boss.y,player.x-boss.x); eBullets.push({x:boss.x,y:boss.y+24,vx:Math.cos(a)*4,vy:Math.sin(a)*4,life:5}); }
+  }
+  if(boss.hp<=0){
+    spawnBoom(boss.x,boss.y,'#fde047'); G.shake=18;
+    G.score+=500; G.runCoins+=100; G.kills++;
+    spawnFloater(boss.x,boss.y,'+500','#fde047');
+    dropCard(boss.x,boss.y-20); dropCard(boss.x+30,boss.y);
+    boss=null; G.wave++; spawnInterval*=0.9; perWave+=2; spawned=0; waveDelay=2.5;
+    toast('Boss 击破！+500 分 · +100 金币');
   }
 }
 
+/* ---------------- 绘制 ---------------- */
 function draw(){
-  ctx.fillStyle="#000";
-  ctx.fillRect(0,0,W,H);
-  // 玩家
-  ctx.fillStyle="#4af";
-  ctx.beginPath();
-  ctx.moveTo(player.x,player.y-16);
-  ctx.lineTo(player.x-14,player.y+14);
-  ctx.lineTo(player.x+14,player.y+14);
-  ctx.fill();
-  // 僚机
-  ctx.fillStyle="#8cf";
-  wingmen.forEach(w=>{
-    ctx.beginPath();
-    ctx.arc(player.x+w.ox,player.y+w.oy,10,0,Math.PI*2);
-    ctx.fill();
-  })
-  // 子弹
-  ctx.fillStyle="#fff";
-  bullets.forEach(b=>{
-    ctx.fillRect(b.x-3,b.y-7,6,14);
-  })
-  //敌人子弹
-  ctx.fillStyle="#f66";
-  enemyBullets.forEach(b=>{
-    ctx.beginPath();
-    ctx.arc(b.x,b.y,5,0,Math.PI*2);ctx.fill();
-  })
-  //敌人
-  ctx.fillStyle="#f44";
-  enemies.forEach(e=>{
-    ctx.fillRect(e.x-e.w/2,e.y-e.h/2,e.w,e.h);
-    //血条
-    ctx.fillStyle="#333";
-    ctx.fillRect(e.x-14,e.y-e.h/2-6,28,3);
-    ctx.fillStyle="#0f0";
-    ctx.fillRect(e.x-14,e.y-e.h/2-6,28*(e.hp/e.maxHp),3);
-    ctx.fillStyle="#f44";
-  })
-  //BOSS
-  if(boss){
-    ctx.fillStyle="#f22";
-    ctx.fillRect(boss.x-boss.w/2,boss.y-boss.h/2,boss.w,boss.h);
-    ctx.fillStyle="#333";
-    ctx.fillRect(boss.x-45,boss.y-boss.h/2-10,90,6);
-    ctx.fillStyle="#f00";
-    ctx.fillRect(boss.x-45,boss.y-boss.h/2-10,90*(boss.hp/boss.maxHp),6);
-  }
-  //卡片
+  ctx.save();
+  if(G.shake>0) ctx.translate((Math.random()-0.5)*G.shake,(Math.random()-0.5)*G.shake);
+  ctx.fillStyle='#02040a'; ctx.fillRect(-20,-20,W+40,H+40);
+  stars.forEach(s=>{ ctx.fillStyle='rgba(255,255,255,'+(0.3+s.s*0.25)+')'; ctx.fillRect(s.x,s.y,s.s,s.s); });
+
   cards.forEach(c=>{
-    ctx.fillStyle="#ff0";
-    ctx.beginPath();
-    ctx.arc(c.x,c.y,18,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle="#000";
-    ctx.font="12px sans-serif";
-    ctx.textAlign="center";
-    ctx.fillText(c.type,c.x,c.y+4);
-  })
-  // UI
-  ctx.fillStyle="#fff";
-  ctx.font="16px sans-serif";
-  ctx.textAlign="left";
-  ctx.fillText(`波次:${wave} 分数:${score} HP:${player.hp}`,8,20);
-  ctx.fillText(`大招:${player.ultReady?"就绪":"冷却"}`,8,40);
+    c.t+=1/60; const def=PERK_DEFS[c.type];
+    ctx.save(); ctx.translate(c.x,c.y+Math.sin(c.t*3)*4);
+    ctx.fillStyle=def.color; ctx.globalAlpha=0.9;
+    ctx.beginPath(); ctx.arc(0,0,18,0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha=1; ctx.fillStyle='#02040a'; ctx.font='bold 11px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(def.label,0,0); ctx.restore();
+  });
+
+  // 玩家子弹（发光光柱）
+  bullets.forEach(b=>{
+    ctx.fillStyle='rgba(125,211,252,.35)'; ctx.fillRect(b.x-5,b.y-9,10,18);
+    ctx.fillStyle='#e0f2fe'; ctx.fillRect(b.x-2,b.y-7,4,14);
+  });
+  // 敌弹
+  eBullets.forEach(b=>{ ctx.fillStyle='rgba(248,113,113,.3)'; ctx.beginPath(); ctx.arc(b.x,b.y,8,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#f87171'; ctx.beginPath(); ctx.arc(b.x,b.y,5,0,Math.PI*2); ctx.fill(); });
+
+  enemies.forEach(e=>{
+    ctx.save(); ctx.translate(e.x,e.y);
+    if(e.kind==='tank'){
+      ctx.fillStyle=e.color; ctx.fillRect(-e.w/2,-e.h/2,e.w,e.h);
+      ctx.fillStyle='#7f1d1d'; ctx.fillRect(-e.w/2+6,-e.h/2+6,e.w-12,e.h-12);
+    } else if(e.kind==='shooter'){
+      ctx.fillStyle=e.color; ctx.beginPath();
+      for(let k=0;k<6;k++){ const a=Math.PI/3*k-Math.PI/2; const px=Math.cos(a)*e.w/2,py=Math.sin(a)*e.h/2; k?ctx.lineTo(px,py):ctx.moveTo(px,py); }
+      ctx.closePath(); ctx.fill();
+    } else {
+      ctx.fillStyle=e.color;
+      ctx.beginPath(); ctx.moveTo(0,e.h/2); ctx.lineTo(-e.w/2,-e.h/2); ctx.lineTo(e.w/2,-e.h/2); ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle='rgba(255,255,255,.85)'; ctx.beginPath(); ctx.arc(0,0,4,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='rgba(0,0,0,.5)'; ctx.fillRect(-e.w/2,-e.h/2-7,e.w,3);
+    ctx.fillStyle='#4ade80'; ctx.fillRect(-e.w/2,-e.h/2-7,e.w*(e.hp/e.maxHp),3);
+    ctx.restore();
+  });
+
+  if(boss){
+    ctx.save(); ctx.translate(boss.x,boss.y);
+    ctx.fillStyle='#dc2626'; ctx.fillRect(-boss.w/2,-boss.h/2,boss.w,boss.h);
+    ctx.fillStyle='#7f1d1d'; ctx.fillRect(-boss.w/2+8,-boss.h/2+8,boss.w-16,boss.h-16);
+    ctx.fillStyle='#fca5a5'; ctx.beginPath(); ctx.arc(-18,0,8,0,Math.PI*2); ctx.arc(18,0,8,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='rgba(0,0,0,.5)'; ctx.fillRect(-45,-boss.h/2-12,90,6);
+    ctx.fillStyle='#ef4444'; ctx.fillRect(-45,-boss.h/2-12,90*(boss.hp/boss.maxHp),6);
+    ctx.restore();
+  }
+
+  wingmen.forEach(w=>{
+    ctx.fillStyle='#a5f3fc';
+    ctx.beginPath(); ctx.moveTo(w.x,w.y-8); ctx.lineTo(w.x-7,w.y+6); ctx.lineTo(w.x+7,w.y+6); ctx.closePath(); ctx.fill();
+  });
+
+  if(G.state!=='over'){
+    ctx.save(); ctx.translate(player.x,player.y); ctx.rotate(player.tilt);
+    if(player.inv>0 && Math.floor(G.time*12)%2===0) ctx.globalAlpha=0.4;
+    const pl=stats.plane;
+    // 尾焰
+    ctx.fillStyle='#fb923c';
+    ctx.beginPath(); ctx.moveTo(-8,16); ctx.lineTo(0,26+Math.random()*6); ctx.lineTo(8,16); ctx.closePath(); ctx.fill();
+    // 主机翼
+    ctx.fillStyle=pl.color;
+    ctx.beginPath(); ctx.moveTo(-20,10); ctx.lineTo(-6,2); ctx.lineTo(-6,14); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(20,10); ctx.lineTo(6,2); ctx.lineTo(6,14); ctx.closePath(); ctx.fill();
+    // 机身
+    ctx.beginPath(); ctx.moveTo(0,-18); ctx.lineTo(-13,14); ctx.lineTo(0,8); ctx.lineTo(13,14); ctx.closePath(); ctx.fill();
+    // 座舱
+    ctx.fillStyle=pl.accent; ctx.beginPath(); ctx.ellipse(0,-2,4.5,8,0,0,Math.PI*2); ctx.fill();
+    if(player.shield>0){ ctx.strokeStyle='rgba(56,189,248,.8)'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(0,0,26,0,Math.PI*2); ctx.stroke(); }
+    ctx.restore();
+  }
+
+  particles.forEach(p=>{ ctx.globalAlpha=Math.max(0,p.life*2); ctx.fillStyle=p.color; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill(); });
+  floaters.forEach(f=>{ ctx.globalAlpha=Math.max(0,f.life*1.4); ctx.fillStyle=f.color; ctx.font='bold 13px sans-serif'; ctx.textAlign='center'; ctx.fillText(f.text,f.x,f.y); });
+  ctx.globalAlpha=1;
+  ctx.restore();
 }
 
-let last = 0;
+/* ---------------- HUD / 流程 ---------------- */
+function refreshHud(){
+  document.getElementById('score').textContent=G.score;
+  document.getElementById('wave').textContent=G.wave;
+  document.getElementById('best').textContent=G.best;
+  document.getElementById('runCoins').textContent=G.runCoins;
+  document.getElementById('hp').textContent='❤'.repeat(Math.max(0,player.hp))+'♡'.repeat(Math.max(0,player.maxHp-player.hp));
+}
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.style.opacity=1; clearTimeout(t._tm); t._tm=setTimeout(()=>t.style.opacity=0,1600); }
+
+async function loadProfile(){
+  const dbp = await ARC_DB.getProfile();
+  const def = defaultProfile();
+  profile = Object.assign(def, dbp||{}, {
+    cards: Object.assign(def.cards, (dbp&&dbp.cards)||{}),
+    best: Object.assign(def.best, (dbp&&dbp.best)||{})
+  });
+  G.best = profile.best.plane || 0;
+  document.getElementById('menuBest').textContent=G.best;
+  document.getElementById('menuCoins').textContent=profile.coins;
+}
+
+async function startGame(){
+  AudioSys.ensure();
+  resetRun();
+  G.state='playing';
+  document.getElementById('menu').classList.add('hidden');
+  document.getElementById('hangar').classList.add('hidden');
+  document.getElementById('over').classList.add('hidden');
+  document.getElementById('pause').classList.add('hidden');
+  updatePerkHud();
+  refreshHud();
+}
+function togglePause(){
+  if(G.state==='playing'){ G.state='paused'; document.getElementById('pause').classList.remove('hidden'); }
+  else if(G.state==='paused'){ G.state='playing'; document.getElementById('pause').classList.add('hidden'); }
+}
+
+async function gameOver(){
+  G.state='over'; AudioSys.over();
+  if(G.score>G.best) G.best=G.score;
+  // 结算：金币 + 最高分
+  if(session()){
+    const earned=G.runCoins;
+    profile.coins+=earned;
+    if(G.score>(profile.best.plane||0)) profile.best.plane=G.score;
+    await ARC_DB.saveProfile({ coins:profile.coins, best:{plane:profile.best.plane} });
+    await ARC_DB.saveScore('plane', G.score);
+  }
+  document.getElementById('finalScore').textContent=G.score;
+  document.getElementById('finalBest').textContent=G.best;
+  document.getElementById('finalCoins').textContent=G.runCoins;
+  renderLB();
+  setTimeout(()=>document.getElementById('over').classList.remove('hidden'),500);
+}
+
+async function renderLB(){
+  const lb=await ARC_DB.getLeaderboard('plane',5);
+  const me=(session()||{}).username;
+  const wrap=document.getElementById('lbWrap');
+  if(!lb.length){ wrap.innerHTML='<div class="hint">暂无排行榜，快来抢榜首</div>'; return; }
+  let html='<table class="lb"><tr><th>#</th><th>玩家</th><th>分数</th></tr>';
+  lb.forEach((r,i)=>{ html+='<tr'+(r.username===me?' class="me"':'')+'><td>'+(i+1)+'</td><td>'+escapeHtml(r.username)+'</td><td>'+r.score+'</td></tr>'; });
+  wrap.innerHTML=html+'</table>';
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+/* ---------------- 机库渲染 ---------------- */
+function renderHangar(){
+  document.getElementById('hangarCoins').textContent=profile.coins;
+  const isGuest=!session();
+  // 战机
+  const pl=document.getElementById('planeList'); pl.innerHTML='';
+  Object.keys(PLANES).forEach(id=>{
+    const p=PLANES[id]; const owned=profile.ownedPlanes.includes(id); const active=profile.currentPlane===id;
+    const el=document.createElement('div'); el.className='plane-card'+(active?' active':'');
+    let action='';
+    if(active) action='<span class="mini-btn" disabled>出战中</span>';
+    else if(owned) action='<button class="mini-btn" data-plane="'+id+'">出战</button>';
+    else action='<button class="mini-btn buy" data-buyplane="'+id+'" '+(isGuest||profile.coins<p.price?'disabled':'')+'>⬡ '+p.price+'</button>';
+    el.innerHTML='<div class="plane-swatch" style="background:'+p.color+'22;color:'+p.color+'">🛩</div>'+
+      '<div class="plane-info"><div class="nm">'+p.name+'</div><div class="ds">'+p.desc+'</div>'+
+      '<div class="st">生命 '+p.hp+' · 速度 '+p.speed.toFixed(1)+' · 伤害 '+p.dmg.toFixed(1)+(p.bullets>1?' · 三向':'')+'</div></div>'+action;
+    pl.appendChild(el);
+  });
+  pl.querySelectorAll('[data-plane]').forEach(b=>b.onclick=()=>selectPlane(b.dataset.plane));
+  pl.querySelectorAll('[data-buyplane]').forEach(b=>b.onclick=()=>buyPlane(b.dataset.buyplane));
+  // 卡片
+  const cl=document.getElementById('cardList'); cl.innerHTML='';
+  Object.keys(CARDS).forEach(k=>{
+    const c=CARDS[k]; const lv=profile.cards[k]||0; const maxed=lv>=c.max; const cost=cardCost(k,lv);
+    const el=document.createElement('div'); el.className='card-row';
+    let pips=''; for(let i=0;i<c.max;i++) pips+='<div class="pip'+(i<lv?' on':'')+'"></div>';
+    let action=maxed?'<button class="mini-btn" disabled>已满级</button>':
+      '<button class="mini-btn buy" data-up="'+k+'" '+(isGuest||profile.coins<cost?'disabled':'')+'>⬡ '+cost+'</button>';
+    el.innerHTML='<div class="ic">'+c.icon+'</div><div class="ci"><div class="nm">'+c.name+'</div><div class="ds">'+c.desc+'</div><div class="pips">'+pips+'</div></div>'+action;
+    cl.appendChild(el);
+  });
+  cl.querySelectorAll('[data-up]').forEach(b=>b.onclick=()=>upgradeCard(b.dataset.up));
+}
+
+async function selectPlane(id){
+  profile.currentPlane=id;
+  await ARC_DB.saveProfile({ currentPlane:id });
+  AudioSys.pickup(); renderHangar();
+}
+async function buyPlane(id){
+  if(!session()){ toast('登录后可购买战机'); return; }
+  const p=PLANES[id];
+  if(profile.coins<p.price){ toast('金币不足'); return; }
+  profile.coins-=p.price;
+  if(!profile.ownedPlanes.includes(id)) profile.ownedPlanes.push(id);
+  profile.currentPlane=id;
+  await ARC_DB.saveProfile({ coins:profile.coins, ownedPlanes:profile.ownedPlanes, currentPlane:id });
+  AudioSys.coin(); toast('已购入 '+p.name+' 并出战'); renderHangar();
+}
+async function upgradeCard(k){
+  if(!session()){ toast('登录后可强化卡片'); return; }
+  const c=CARDS[k]; const lv=profile.cards[k]||0;
+  if(lv>=c.max) return;
+  const cost=cardCost(k,lv);
+  if(profile.coins<cost){ toast('金币不足'); return; }
+  profile.coins-=cost; profile.cards[k]=lv+1;
+  await ARC_DB.saveProfile({ coins:profile.coins, cards:profile.cards });
+  AudioSys.coin(); toast(c.name+' 升至 Lv.'+(lv+1)); renderHangar();
+}
+
+/* ---------------- 主循环 ---------------- */
+let last=0;
 function loop(t){
-  const dt = Math.min((t-last)/1000,0.05);
-  last = t;
-  update(dt);
+  const dt=Math.min((t-last)/1000,0.05)||0; last=t;
+  if(G.state==='playing'){ update(dt); refreshHud(); }
   draw();
   requestAnimationFrame(loop);
 }
 
-initWingman();
+/* ---------------- 按钮 ---------------- */
+document.getElementById('btnStart').onclick=startGame;
+document.getElementById('btnRetry').onclick=startGame;
+document.getElementById('btnRestartP').onclick=startGame;
+document.getElementById('btnResume').onclick=togglePause;
+document.getElementById('btnHangar').onclick=()=>{ renderHangar(); document.getElementById('menu').classList.add('hidden'); document.getElementById('hangar').classList.remove('hidden'); };
+document.getElementById('btnHangar2').onclick=()=>{ renderHangar(); document.getElementById('over').classList.add('hidden'); document.getElementById('hangar').classList.remove('hidden'); };
+document.getElementById('btnHangarBack').onclick=()=>{ document.getElementById('hangar').classList.add('hidden'); if(G.state==='menu') document.getElementById('menu').classList.remove('hidden'); };
+document.getElementById('btnMenuBack').onclick=()=>location.href='../../unlogin_menu.html';
+document.getElementById('btnBack').onclick=()=>location.href='../../unlogin_menu.html';
+
+resetRun();
 requestAnimationFrame(loop);
+loadProfile().then(()=>{ resetRun(); refreshHud(); });
 </script>
 </body>
 </html>
